@@ -1,20 +1,18 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  项目是 MarketPilot，一个面向国内中文演示场景的商机顾问 Agent。
+  Change 命名使用英文动作 + 名词风格，例如 create-research-task。
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
+rules:
+  proposal:
+    - 聚焦单个垂直业务切片，避免把多个 Change 混在一个 proposal 中。
+    - 明确用户价值、范围和非目标。
+    - 产品需求描述不要混入不必要的实现细节。
+  spec:
+    - 使用可验证的 requirement 和 scenario。
+    - 对用户可见文案默认中文，并考虑中英文 UI 切换。
+    - 涉及 Agent、RAG 或异步任务时必须覆盖 tracing、logging 或 metrics 影响。
+  tasks:
+    - 按可交付的实现步骤拆分任务。
+    - 包含必要的测试、线上演示验证和可观测性验证。
