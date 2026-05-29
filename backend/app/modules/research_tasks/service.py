@@ -6,6 +6,9 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Session
 
+from app.core.settings import get_settings
+from app.integrations.langsmith import TraceContext, langsmith_trace
+from app.modules.agent_runs import service as agent_run_events_service
 from app.modules.research_tasks import repository
 from app.modules.research_tasks.models import ResearchTask
 from app.modules.research_tasks.schemas import (
@@ -19,6 +22,16 @@ logger = logging.getLogger(__name__)
 RUNNING_STATUSES = {
     ResearchTaskStatus.QUEUED.value,
     ResearchTaskStatus.RUNNING.value,
+}
+
+ROOT_STAGE = "opportunity_research"
+
+FAILURE_STAGE_LABELS = {
+    ROOT_STAGE: "基础研究",
+    ResearchTaskStage.NORMALIZE_INTAKE.value: "需求整理",
+    ResearchTaskStage.GENERATE_OPPORTUNITIES.value: "基础商机生成",
+    ResearchTaskStage.VALIDATE_RESULTS.value: "结果校验",
+    ResearchTaskStage.PERSIST_RESULTS.value: "结果保存",
 }
 
 
@@ -88,6 +101,8 @@ def start_research_run(
     task.run_id = f"research-{uuid4()}"
     task.status = ResearchTaskStatus.QUEUED.value
     task.current_stage = ResearchTaskStage.QUEUED.value
+    task.trace_id = None
+    task.trace_url = None
     task.failure_reason = None
     save_research_task(db, task)
 
@@ -120,6 +135,70 @@ def mark_task_failed(
     return save_research_task(db, task)
 
 
+def update_task_trace(
+    db: Session,
+    task: ResearchTask,
+    trace_context: Optional[TraceContext],
+) -> ResearchTask:
+    if trace_context is None:
+        return task
+
+    if trace_context.trace_id:
+        task.trace_id = trace_context.trace_id
+
+    if trace_context.trace_url:
+        task.trace_url = trace_context.trace_url
+
+    if trace_context.trace_id or trace_context.trace_url:
+        return save_research_task(db, task)
+
+    return task
+
+
+def make_failure_reason(stage: str, exc: Exception) -> str:
+    stage_label = FAILURE_STAGE_LABELS.get(stage, "基础研究")
+
+    if stage == ResearchTaskStage.GENERATE_OPPORTUNITIES.value:
+        return "基础商机生成失败：模型输出未通过结构化校验或生成过程异常。"
+
+    if stage == ResearchTaskStage.PERSIST_RESULTS.value:
+        return "基础商机生成失败：结果保存失败，请稍后重试。"
+
+    if stage == ResearchTaskStage.VALIDATE_RESULTS.value:
+        return "基础商机生成失败：结果校验失败，请稍后重试。"
+
+    if stage == ResearchTaskStage.NORMALIZE_INTAKE.value:
+        return "基础商机生成失败：需求整理失败，请检查任务输入后重试。"
+
+    logger.debug("Research run failed in %s: %s", stage_label, type(exc).__name__)
+    return f"基础商机生成失败：{stage_label}阶段异常，请稍后重试。"
+
+
+def get_task_failure_stage(db: Session, task: ResearchTask, run_id: str) -> str:
+    failed_events = [
+        event
+        for event in agent_run_events_service.list_run_events(db, task, run_id)
+        if event.status == agent_run_events_service.STATUS_FAILED
+        and event.stage != ROOT_STAGE
+    ]
+
+    if failed_events:
+        return failed_events[-1].stage
+
+    return task.current_stage or ROOT_STAGE
+
+
+def make_trace_metadata(task: ResearchTask, run_id: str) -> dict[str, Any]:
+    settings = get_settings()
+    return {
+        "task_uuid": str(task.uuid),
+        "run_id": run_id,
+        "environment": settings.environment,
+        "research_boundary": "基础推荐，无外部前置调研",
+        "langsmith_project": settings.langsmith_project,
+    }
+
+
 def execute_research_run(
     db: Session,
     task_uuid: UUID,
@@ -148,7 +227,7 @@ def execute_research_run(
 
     task.run_id = run_id
     task.status = ResearchTaskStatus.RUNNING.value
-    task.current_stage = ResearchTaskStage.GENERATE_OPPORTUNITIES.value
+    task.current_stage = ResearchTaskStage.NORMALIZE_INTAKE.value
     task.failure_reason = None
     save_research_task(db, task)
 
@@ -160,11 +239,51 @@ def execute_research_run(
             extra={"task_uuid": str(task.uuid), "run_id": run_id},
         )
         graph = build_research_graph()
-        graph.invoke({"db": db, "task": task, "run_id": run_id, "generator": generator})
+
+        with langsmith_trace(
+            ROOT_STAGE,
+            inputs={
+                "task_uuid": str(task.uuid),
+                "brief": task.brief,
+            },
+            metadata=make_trace_metadata(task, run_id),
+        ) as trace_context:
+            task = update_task_trace(db, task, trace_context)
+            agent_run_events_service.start_stage(
+                db,
+                task,
+                run_id=run_id,
+                stage=ROOT_STAGE,
+                trace_id=task.trace_id,
+                metadata=make_trace_metadata(task, run_id),
+            )
+            graph.invoke(
+                {
+                    "db": db,
+                    "task": task,
+                    "run_id": run_id,
+                    "trace_id": task.trace_id,
+                    "generator": generator,
+                }
+            )
+            db.refresh(task)
+            agent_run_events_service.complete_stage(
+                db,
+                task,
+                run_id=run_id,
+                stage=ROOT_STAGE,
+                trace_id=task.trace_id,
+                metadata={"status": ResearchTaskStatus.COMPLETED.value},
+            )
         db.refresh(task)
         logger.info(
             "Completed opportunity research run",
-            extra={"task_uuid": str(task.uuid), "run_id": run_id},
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                "trace_id": task.trace_id,
+                "stage": ROOT_STAGE,
+            },
         )
         return task
     except Exception as exc:
@@ -174,8 +293,38 @@ def execute_research_run(
         if task is None:
             return None
 
+        failed_stage = get_task_failure_stage(db, task, run_id)
+        failure_reason = make_failure_reason(failed_stage, exc)
+
+        try:
+            agent_run_events_service.fail_stage(
+                db,
+                task,
+                run_id=run_id,
+                stage=ROOT_STAGE,
+                trace_id=task.trace_id,
+                error_summary=failure_reason,
+                metadata={"failed_stage": failed_stage},
+            )
+        except Exception:
+            logger.warning(
+                "Failed to persist root agent run failure event",
+                exc_info=True,
+                extra={
+                    "task_uuid": str(task.uuid),
+                    "run_id": run_id,
+                    "trace_id": task.trace_id,
+                    "stage": ROOT_STAGE,
+                },
+            )
+
         logger.exception(
             "Opportunity research run failed",
-            extra={"task_uuid": str(task.uuid), "run_id": run_id},
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                "trace_id": task.trace_id,
+                "stage": failed_stage,
+            },
         )
-        return mark_task_failed(db, task, f"基础商机生成失败：{exc}")
+        return mark_task_failed(db, task, failure_reason)

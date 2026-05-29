@@ -74,6 +74,7 @@ def test_create_research_task(client: tuple[TestClient, sessionmaker[Session]]) 
     assert body["current_stage"] == "intake"
     assert body["run_id"] is None
     assert body["trace_id"] is None
+    assert body["trace_url"] is None
     assert body["failure_reason"] is None
     assert body["deleted_at"] is None
 

@@ -11,7 +11,10 @@ export type ResearchTaskStatus =
 export type ResearchTaskStage =
   | "intake"
   | "queued"
+  | "normalize_intake"
   | "generate_opportunities"
+  | "validate_results"
+  | "persist_results"
   | "completed"
   | "failed";
 
@@ -31,6 +34,7 @@ export type ResearchTask = {
   current_stage: ResearchTaskStage;
   run_id: string | null;
   trace_id: string | null;
+  trace_url: string | null;
   failure_reason: string | null;
   created_at: string;
   updated_at: string;

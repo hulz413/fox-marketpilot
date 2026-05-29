@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { ArrowRight, FileText, Play, RefreshCcw } from "lucide-react";
+import { ArrowRight, ExternalLink, FileText, Play, RefreshCcw } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,10 @@ const statusLabels: Record<ResearchTask["status"], string> = {
 const stageLabels: Record<ResearchTask["current_stage"], string> = {
   intake: "需求已提交",
   queued: "等待后台执行",
+  normalize_intake: "整理研究需求",
   generate_opportunities: "生成基础推荐",
+  validate_results: "校验推荐结果",
+  persist_results: "保存研究结果",
   completed: "基础推荐已生成",
   failed: "生成失败",
 };
@@ -119,7 +122,7 @@ export function ResearchTaskList() {
         <Badge variant="secondary">{tasks.length} 个任务</Badge>
       </CardHeader>
       <CardContent className="p-0">
-        <Table className="min-w-[760px]">
+        <Table className="min-w-[900px]">
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50">
               <TableHead className="h-14 px-5">任务标题</TableHead>
@@ -171,6 +174,7 @@ function TaskActions({
   if (task.status === "completed") {
     return (
       <div className="flex justify-end gap-2">
+        <LangSmithTraceLink task={task} />
         <Button asChild variant="outline" size="sm">
           <Link href={`/opportunities?task=${task.uuid}`}>
             商机
@@ -189,7 +193,8 @@ function TaskActions({
 
   if (task.status === "queued" || task.status === "running") {
     return (
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <LangSmithTraceLink task={task} />
         <Button disabled variant="outline" size="sm">
           <RefreshCcw data-icon="inline-start" />
           运行中
@@ -199,7 +204,8 @@ function TaskActions({
   }
 
   return (
-    <div className="flex justify-end">
+    <div className="flex justify-end gap-2">
+      <LangSmithTraceLink task={task} />
       <Button
         type="button"
         variant={task.status === "failed" ? "outline" : "default"}
@@ -215,5 +221,20 @@ function TaskActions({
         {task.status === "failed" ? "重新运行" : "开始研究"}
       </Button>
     </div>
+  );
+}
+
+function LangSmithTraceLink({ task }: { task: ResearchTask }) {
+  if (!task.trace_url) {
+    return null;
+  }
+
+  return (
+    <Button asChild variant="ghost" size="sm">
+      <a href={task.trace_url} target="_blank" rel="noreferrer">
+        <ExternalLink data-icon="inline-start" />
+        LangSmith
+      </a>
+    </Button>
   );
 }

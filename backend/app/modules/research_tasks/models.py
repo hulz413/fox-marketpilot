@@ -56,6 +56,7 @@ class ResearchTask(Base):
     current_stage: Mapped[str] = mapped_column(String(64), nullable=False, default="intake")
     run_id: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     trace_id: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    trace_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     failure_reason: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

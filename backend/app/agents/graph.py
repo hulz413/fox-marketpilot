@@ -11,7 +11,9 @@ from sqlalchemy.orm import Session
 from langgraph.graph import END, START, StateGraph
 
 from app.core.settings import get_settings
+from app.integrations.langsmith import is_langsmith_tracing_enabled, langsmith_trace
 from app.integrations.llm import create_llm_client
+from app.modules.agent_runs import service as agent_run_events_service
 from app.modules.opportunities import service as opportunities_service
 from app.modules.opportunities.schemas import (
     OpportunityGenerated,
@@ -32,6 +34,7 @@ class ResearchGraphState(TypedDict, total=False):
     db: Session
     task: ResearchTask
     run_id: str
+    trace_id: str
     context: dict[str, Any]
     raw_result: dict[str, Any]
     opportunities: list[OpportunityGenerated]
@@ -107,11 +110,12 @@ class LLMOpportunityGenerator:
         settings = get_settings()
         self.client = client or create_llm_client()
         self.model = settings.llm_model
+        self.provider = settings.llm_provider
 
     def generate(self, context: dict[str, Any]) -> dict[str, Any]:
-        completion = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
+        create_kwargs: dict[str, Any] = {
+            "model": self.model,
+            "messages": [
                 {
                     "role": "system",
                     "content": (
@@ -126,9 +130,22 @@ class LLMOpportunityGenerator:
                     "content": build_generation_prompt(context),
                 },
             ],
-            response_format={"type": "json_object"},
-            temperature=0.4,
-        )
+            "response_format": {"type": "json_object"},
+            "temperature": 0.4,
+        }
+
+        if is_langsmith_tracing_enabled():
+            create_kwargs["langsmith_extra"] = {
+                "metadata": {
+                    "provider": self.provider,
+                    "model": self.model,
+                    "task_uuid": context.get("task_uuid"),
+                    "run_id": context.get("run_id"),
+                },
+                "tags": ["marketpilot", "opportunity-research"],
+            }
+
+        completion = self.client.chat.completions.create(**create_kwargs)
         content = completion.choices[0].message.content
 
         if not content:
@@ -208,6 +225,8 @@ def normalize_intake(state: ResearchGraphState) -> dict[str, Any]:
         "constraints": task.constraints,
         "language": "zh-CN",
         "research_boundary": "基础推荐，无外部前置调研",
+        "task_uuid": str(task.uuid),
+        "run_id": state.get("run_id"),
     }
     logger.info(
         "Normalized research intake",
@@ -281,12 +300,98 @@ def persist_results(state: ResearchGraphState) -> dict[str, Any]:
     return {"task": task}
 
 
+def update_task_stage(
+    db: Session,
+    task: ResearchTask,
+    stage: ResearchTaskStage,
+) -> ResearchTask:
+    task.current_stage = stage.value
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return task
+
+
+def stage_metadata(state: ResearchGraphState, stage: str) -> dict[str, Any]:
+    task = state["task"]
+    return {
+        "task_uuid": str(task.uuid),
+        "run_id": state.get("run_id"),
+        "stage": stage,
+        "trace_id": state.get("trace_id"),
+    }
+
+
+def observe_node(stage: ResearchTaskStage, node):
+    def observed(state: ResearchGraphState) -> dict[str, Any]:
+        db = state["db"]
+        task = state["task"]
+        run_id = state["run_id"]
+        trace_id = state.get("trace_id")
+        metadata = stage_metadata(state, stage.value)
+
+        try:
+            task = update_task_stage(db, task, stage)
+            state["task"] = task
+            agent_run_events_service.start_stage(
+                db,
+                task,
+                run_id=run_id,
+                stage=stage.value,
+                trace_id=trace_id,
+                metadata=metadata,
+            )
+
+            with langsmith_trace(
+                stage.value,
+                inputs={"task_uuid": str(task.uuid), "run_id": run_id},
+                metadata=metadata,
+            ):
+                result = node(state)
+
+            agent_run_events_service.complete_stage(
+                db,
+                task,
+                run_id=run_id,
+                stage=stage.value,
+                trace_id=trace_id,
+                metadata=metadata,
+            )
+            return result
+        except Exception as exc:
+            db.rollback()
+            agent_run_events_service.fail_stage(
+                db,
+                task,
+                run_id=run_id,
+                stage=stage.value,
+                trace_id=trace_id,
+                error_summary=f"{stage.value} failed: {type(exc).__name__}",
+                metadata=metadata,
+            )
+            raise
+
+    return observed
+
+
 def build_research_graph():
     graph = StateGraph(ResearchGraphState)
-    graph.add_node("normalize_intake", normalize_intake)
-    graph.add_node("generate_opportunities", generate_opportunities)
-    graph.add_node("validate_results", validate_results)
-    graph.add_node("persist_results", persist_results)
+    graph.add_node(
+        "normalize_intake",
+        observe_node(ResearchTaskStage.NORMALIZE_INTAKE, normalize_intake),
+    )
+    graph.add_node(
+        "generate_opportunities",
+        observe_node(ResearchTaskStage.GENERATE_OPPORTUNITIES, generate_opportunities),
+    )
+    graph.add_node(
+        "validate_results",
+        observe_node(ResearchTaskStage.VALIDATE_RESULTS, validate_results),
+    )
+    graph.add_node(
+        "persist_results",
+        observe_node(ResearchTaskStage.PERSIST_RESULTS, persist_results),
+    )
     graph.add_edge(START, "normalize_intake")
     graph.add_edge("normalize_intake", "generate_opportunities")
     graph.add_edge("generate_opportunities", "validate_results")

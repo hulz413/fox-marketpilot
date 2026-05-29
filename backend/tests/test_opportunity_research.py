@@ -1,18 +1,22 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from typing import Any, Iterator
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.agents.graph import DeterministicDemoGenerator
 from app.db.base import Base
 from app.db.session import get_db
+from app.integrations.langsmith import TraceContext
 from app.main import app
+from app.modules.agent_runs.models import AgentRunEvent
+from app.modules.agent_runs import service as agent_run_events_service
 from app.modules.research_tasks import service as research_task_service
 
 
@@ -83,6 +87,8 @@ def test_start_research_run_queues_task_once(
     assert body["status"] == "queued"
     assert body["current_stage"] == "queued"
     assert body["run_id"]
+    assert body["trace_id"] is None
+    assert body["trace_url"] is None
     assert body["failure_reason"] is None
     assert len(enqueued_runs) == 1
 
@@ -108,9 +114,91 @@ def test_start_research_run_missing_task_returns_404(
 
 def test_execute_research_run_generates_opportunities(
     client: tuple[TestClient, sessionmaker[Session]],
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
     test_client, session_factory = client
     created = create_task(test_client)
+
+    with session_factory() as db:
+        task = research_task_service.start_research_run(
+            db,
+            UUID(created["uuid"]),
+            enqueue=False,
+        )
+        assert task is not None
+        assert task.run_id is not None
+        run_id = task.run_id
+        with caplog.at_level("INFO"):
+            research_task_service.execute_research_run(
+                db,
+                UUID(created["uuid"]),
+                run_id,
+                generator=DeterministicDemoGenerator(),
+            )
+
+    task_response = test_client.get(f"/api/v1/research-tasks/{created['uuid']}")
+    opportunities_response = test_client.get(
+        f"/api/v1/research-tasks/{created['uuid']}/opportunities"
+    )
+
+    assert task_response.status_code == 200
+    assert task_response.json()["status"] == "completed"
+    assert task_response.json()["current_stage"] == "completed"
+    assert task_response.json()["trace_id"] is None
+    assert task_response.json()["trace_url"] is None
+    assert opportunities_response.status_code == 200
+    opportunities = opportunities_response.json()
+    assert len(opportunities) == 3
+    assert [item["rank"] for item in opportunities] == [1, 2, 3]
+    assert all("uuid" in item for item in opportunities)
+    assert all("source" not in item for item in opportunities)
+
+    detail_response = test_client.get(f"/api/v1/opportunities/{opportunities[0]['uuid']}")
+
+    assert detail_response.status_code == 200
+    assert detail_response.json()["research_task_uuid"] == created["uuid"]
+
+    with session_factory() as db:
+        events = db.execute(
+            select(AgentRunEvent)
+            .where(AgentRunEvent.research_task_id == 1)
+            .order_by(AgentRunEvent.started_at.asc(), AgentRunEvent.id.asc())
+        ).scalars().all()
+
+    assert [event.stage for event in events] == [
+        "opportunity_research",
+        "normalize_intake",
+        "generate_opportunities",
+        "validate_results",
+        "persist_results",
+    ]
+    assert all(event.status == agent_run_events_service.STATUS_COMPLETED for event in events)
+    assert all(event.started_at is not None for event in events)
+    assert all(event.completed_at is not None for event in events)
+    assert all(event.duration_ms is not None for event in events)
+    assert any(
+        record.message == "Agent run stage completed"
+        and getattr(record, "stage", None) == "generate_opportunities"
+        and getattr(record, "run_id", None) == run_id
+        for record in caplog.records
+    )
+
+
+def test_execute_research_run_persists_trace_context(
+    client: tuple[TestClient, sessionmaker[Session]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    test_client, session_factory = client
+    created = create_task(test_client)
+
+    @contextmanager
+    def fake_langsmith_trace(*args: Any, **kwargs: Any) -> Iterator[TraceContext]:
+        yield TraceContext(
+            trace_id="11111111-1111-1111-1111-111111111111",
+            trace_url="https://smith.langchain.com/public/trace/11111111",
+        )
+
+    monkeypatch.setattr(research_task_service, "langsmith_trace", fake_langsmith_trace)
 
     with session_factory() as db:
         task = research_task_service.start_research_run(
@@ -128,24 +216,24 @@ def test_execute_research_run_generates_opportunities(
         )
 
     task_response = test_client.get(f"/api/v1/research-tasks/{created['uuid']}")
-    opportunities_response = test_client.get(
-        f"/api/v1/research-tasks/{created['uuid']}/opportunities"
-    )
 
     assert task_response.status_code == 200
-    assert task_response.json()["status"] == "completed"
-    assert task_response.json()["current_stage"] == "completed"
-    assert opportunities_response.status_code == 200
-    opportunities = opportunities_response.json()
-    assert len(opportunities) == 3
-    assert [item["rank"] for item in opportunities] == [1, 2, 3]
-    assert all("uuid" in item for item in opportunities)
-    assert all("source" not in item for item in opportunities)
+    assert task_response.json()["trace_id"] == "11111111-1111-1111-1111-111111111111"
+    assert task_response.json()["trace_url"] == "https://smith.langchain.com/public/trace/11111111"
 
-    detail_response = test_client.get(f"/api/v1/opportunities/{opportunities[0]['uuid']}")
+    with session_factory() as db:
+        events = db.execute(
+            select(AgentRunEvent).order_by(
+                AgentRunEvent.started_at.asc(),
+                AgentRunEvent.id.asc(),
+            )
+        ).scalars().all()
 
-    assert detail_response.status_code == 200
-    assert detail_response.json()["research_task_uuid"] == created["uuid"]
+    assert events
+    assert all(
+        event.trace_id == "11111111-1111-1111-1111-111111111111"
+        for event in events
+    )
 
 
 def test_execute_research_run_failure_sets_task_failed(
@@ -184,6 +272,23 @@ def test_execute_research_run_failure_sets_task_failed(
     assert "基础商机生成失败" in task_response.json()["failure_reason"]
     assert opportunities_response.json() == []
 
+    with session_factory() as db:
+        events = db.execute(
+            select(AgentRunEvent).order_by(
+                AgentRunEvent.started_at.asc(),
+                AgentRunEvent.id.asc(),
+            )
+        ).scalars().all()
+
+    failed_events = [
+        event for event in events if event.status == agent_run_events_service.STATUS_FAILED
+    ]
+    assert {event.stage for event in failed_events} == {
+        "generate_opportunities",
+        "opportunity_research",
+    }
+    assert all(event.error_summary for event in failed_events)
+
 
 def test_rerun_replaces_old_opportunities(
     client: tuple[TestClient, sessionmaker[Session]],
@@ -199,6 +304,7 @@ def test_rerun_replaces_old_opportunities(
         )
         assert task is not None
         assert task.run_id is not None
+        first_run_id = task.run_id
         research_task_service.execute_research_run(
             db,
             UUID(created["uuid"]),
@@ -219,6 +325,7 @@ def test_rerun_replaces_old_opportunities(
         )
         assert task is not None
         assert task.run_id is not None
+        second_run_id = task.run_id
         research_task_service.execute_research_run(
             db,
             UUID(created["uuid"]),
@@ -234,3 +341,29 @@ def test_rerun_replaces_old_opportunities(
     assert len(second_run) == 3
     assert old_opportunity_uuid not in [item["uuid"] for item in second_run]
     assert old_detail_response.status_code == 404
+    assert first_run_id != second_run_id
+
+    with session_factory() as db:
+        first_events = db.execute(
+            select(AgentRunEvent).where(AgentRunEvent.run_id == first_run_id)
+        ).scalars().all()
+        second_events = db.execute(
+            select(AgentRunEvent).where(AgentRunEvent.run_id == second_run_id)
+        ).scalars().all()
+
+    assert first_events
+    assert second_events
+    assert {event.stage for event in first_events} == {
+        "opportunity_research",
+        "normalize_intake",
+        "generate_opportunities",
+        "validate_results",
+        "persist_results",
+    }
+    assert {event.stage for event in second_events} == {
+        "opportunity_research",
+        "normalize_intake",
+        "generate_opportunities",
+        "validate_results",
+        "persist_results",
+    }

@@ -22,7 +22,9 @@ class Settings(BaseSettings):
 
     langsmith_tracing: bool = False
     langsmith_api_key: str = ""
-    langsmith_project: str = "marketpilot"
+    langsmith_project: str = "marketpilot-dev"
+    langsmith_endpoint: str = ""
+    langsmith_workspace_id: str = ""
 
     tavily_api_key: str = ""
 

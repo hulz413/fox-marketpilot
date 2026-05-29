@@ -1,0 +1,104 @@
+## Purpose
+
+定义 MarketPilot Agent 研究运行的 trace、日志关联、阶段历史、耗时和失败定位能力，帮助开发者从任务记录、应用日志和 LangSmith trace 定位同一次运行。
+
+## Requirements
+
+### Requirement: Agent 研究运行可以追踪
+
+系统 SHALL 为每次基础商机研究运行提供可关联的 Agent run observability 记录，使开发者能从任务记录、应用日志和 LangSmith trace 定位同一次运行。
+
+#### Scenario: LangSmith tracing 启用时记录 trace
+
+- **WHEN** 后台执行一条基础商机研究运行且 LangSmith tracing 已通过环境变量启用
+- **THEN** 系统创建一条可在 LangSmith 项目中查看的研究运行 trace
+- **AND** trace 包含任务 UUID、运行 ID、当前环境和研究边界 metadata
+- **AND** 任务记录保存该运行可关联的 trace ID
+
+#### Scenario: LangSmith tracing 未启用时保持主流程可用
+
+- **WHEN** 后台执行一条基础商机研究运行且未配置 LangSmith tracing
+- **THEN** 系统仍执行基础商机研究并生成或失败处理结果
+- **AND** 系统不因为缺少 LangSmith API key 而让研究任务失败
+- **AND** 任务记录的 trace ID 可以为空
+
+### Requirement: Agent 节点和 LLM 调用可以观测
+
+系统 SHALL 在基础商机研究运行中记录主要 Agent 节点、LLM 调用和结果持久化阶段的可观测信息。
+
+#### Scenario: 成功运行记录节点链路
+
+- **WHEN** 基础商机研究运行成功完成
+- **THEN** 系统记录 `normalize_intake`、`generate_opportunities`、`validate_results` 和 `persist_results` 阶段的开始、完成和耗时
+- **AND** LangSmith tracing 启用时这些阶段可在同一条研究运行 trace 下关联查看
+- **AND** 应用日志包含任务 UUID、运行 ID、trace ID、阶段和耗时字段
+
+#### Scenario: LLM 调用记录可排障信息
+
+- **WHEN** 系统调用 OpenAI-compatible LLM provider 生成基础商机推荐
+- **THEN** LangSmith tracing 启用时该 LLM 调用可在研究运行 trace 中查看
+- **AND** trace metadata 包含 provider、model、任务 UUID 和运行 ID
+- **AND** 系统不把 API key 或其他敏感凭证写入 trace metadata 或用户可见失败信息
+
+### Requirement: Agent 阶段历史和耗时需要持久化
+
+系统 SHALL 将每次基础商机研究运行的完整阶段历史和耗时保存为可读取的持久化记录，为后续研究进度页提供数据基础。
+
+#### Scenario: 成功运行保存完整阶段历史
+
+- **WHEN** 基础商机研究运行成功完成
+- **THEN** 系统保存该运行每个主要阶段的事件记录
+- **AND** 每条事件记录关联任务 UUID 或任务公开标识、运行 ID 和可空 trace ID
+- **AND** 每条事件记录包含阶段名称、阶段状态、开始时间、完成时间和耗时
+- **AND** 系统不暴露内部自增 ID
+
+#### Scenario: 失败运行保存失败阶段历史
+
+- **WHEN** 基础商机研究运行在某个阶段失败
+- **THEN** 系统保存失败阶段的事件记录
+- **AND** 失败阶段记录包含失败状态、失败时间、耗时和错误摘要
+- **AND** 已完成阶段的事件记录仍保留
+- **AND** 用户可见错误摘要不包含敏感凭证、原始堆栈或内部自增 ID
+
+#### Scenario: 重新运行保留不同运行的阶段历史
+
+- **WHEN** 用户重新运行一条已完成或已失败的研究任务
+- **THEN** 系统为新运行保存新的阶段事件记录
+- **AND** 旧运行的阶段事件不会被新运行覆盖
+- **AND** 后续可以通过运行 ID 区分不同运行的阶段历史
+
+### Requirement: Agent trace 可以从任务入口打开
+
+系统 SHALL 在已生成 LangSmith trace 的研究任务上提供可打开对应 trace 的入口，帮助内部演示和排障直接查看运行链路。
+
+#### Scenario: 任务有 trace URL 时展示入口
+
+- **WHEN** 用户在任务列表或任务相关页面查看一条已经关联 LangSmith trace URL 的研究任务
+- **THEN** 前端展示打开 LangSmith trace 的外链入口
+- **AND** 点击入口后打开对应 LangSmith trace 页面
+- **AND** LangSmith 页面可用于查看运行树、节点输入输出、错误、耗时和 token usage 等指标
+
+#### Scenario: 任务没有 trace URL 时不展示入口
+
+- **WHEN** 用户查看一条未启用 tracing 或尚未创建 trace 的研究任务
+- **THEN** 前端不展示可点击的 LangSmith trace 入口
+- **AND** 任务列表仍正常展示任务状态、当前阶段和可用操作
+
+### Requirement: 失败运行可以定位失败阶段
+
+系统 SHALL 在基础商机研究运行失败时记录可定位失败阶段的观测信息，同时保留用户可理解的失败摘要。
+
+#### Scenario: 节点失败时记录失败阶段
+
+- **WHEN** Agent 节点、LLM 调用、结果解析、结果校验或持久化失败且无法恢复
+- **THEN** 系统记录失败阶段、任务 UUID、运行 ID、trace ID 和错误摘要
+- **AND** 任务状态更新为 `failed`
+- **AND** 任务失败原因是中文可理解摘要
+- **AND** 用户可见失败原因不包含敏感凭证、原始堆栈或内部自增 ID
+
+#### Scenario: 可观测系统异常不覆盖业务结果
+
+- **WHEN** LangSmith trace 创建、trace ID 获取或 metadata 写入失败
+- **THEN** 系统记录可观测异常日志
+- **AND** 系统继续执行基础商机研究主流程
+- **AND** 研究任务不会仅因为可观测系统异常而失败

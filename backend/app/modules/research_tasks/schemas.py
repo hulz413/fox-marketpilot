@@ -19,7 +19,10 @@ class ResearchTaskStatus(str, Enum):
 class ResearchTaskStage(str, Enum):
     INTAKE = "intake"
     QUEUED = "queued"
+    NORMALIZE_INTAKE = "normalize_intake"
     GENERATE_OPPORTUNITIES = "generate_opportunities"
+    VALIDATE_RESULTS = "validate_results"
+    PERSIST_RESULTS = "persist_results"
     COMPLETED = "completed"
     FAILED = "failed"
 
@@ -92,6 +95,7 @@ class ResearchTaskRead(BaseModel):
     current_stage: ResearchTaskStage
     run_id: Optional[str]
     trace_id: Optional[str]
+    trace_url: Optional[str]
     failure_reason: Optional[str]
     created_at: datetime
     updated_at: datetime

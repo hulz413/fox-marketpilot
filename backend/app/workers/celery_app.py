@@ -1,7 +1,9 @@
 from celery import Celery
 
 from app.core.settings import get_settings
+from app.integrations.langsmith import configure_langsmith_environment
 
+configure_langsmith_environment()
 settings = get_settings()
 
 celery_app = Celery(
