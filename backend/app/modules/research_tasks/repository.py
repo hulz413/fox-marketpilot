@@ -37,3 +37,22 @@ def get_active_research_task_by_uuid(
     )
 
     return db.execute(statement).scalar_one_or_none()
+
+
+def get_active_research_task_by_id(
+    db: Session,
+    task_id: int,
+) -> Optional[ResearchTask]:
+    statement = select(ResearchTask).where(
+        ResearchTask.id == task_id,
+        ResearchTask.deleted_at.is_(None),
+    )
+
+    return db.execute(statement).scalar_one_or_none()
+
+
+def save_research_task(db: Session, task: ResearchTask) -> ResearchTask:
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return task

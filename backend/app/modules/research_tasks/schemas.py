@@ -10,10 +10,18 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class ResearchTaskStatus(str, Enum):
     CREATED = "created"
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 class ResearchTaskStage(str, Enum):
     INTAKE = "intake"
+    QUEUED = "queued"
+    GENERATE_OPPORTUNITIES = "generate_opportunities"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 class ResearchTaskCreate(BaseModel):

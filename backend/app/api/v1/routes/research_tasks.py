@@ -41,3 +41,16 @@ def get_research_task(
         raise HTTPException(status_code=404, detail="Research task not found")
 
     return task
+
+
+@router.post("/{task_uuid}/runs", response_model=ResearchTaskRead)
+def start_research_run(
+    task_uuid: UUID,
+    db: Session = Depends(get_db),
+) -> ResearchTaskRead:
+    task = service.start_research_run(db, task_uuid)
+
+    if task is None:
+        raise HTTPException(status_code=404, detail="Research task not found")
+
+    return task

@@ -31,10 +31,10 @@ export const samplePrompts = [
 ];
 
 export const researchStages = [
-  { label: "收集来源", detail: "整理中文内容平台和供给市场公开信息", progress: 86 },
-  { label: "分析供给", detail: "估算价格带、起订量和需要确认的问题", progress: 64 },
-  { label: "生成推荐", detail: "合并需求、供给、竞品和风险判断", progress: 48 },
-  { label: "生成报告", detail: "整理商机排序、详情摘要和行动建议", progress: 24 },
+  { label: "归一化需求", detail: "整理预算、渠道、品类和限制条件", progress: 86 },
+  { label: "生成草案", detail: "基于任务输入生成待验证商机", progress: 64 },
+  { label: "校验结果", detail: "检查字段、排序、风险等级和数量", progress: 48 },
+  { label: "保存结果", detail: "写入商机推荐并更新任务状态", progress: 24 },
 ];
 
 export const researchTasks = [
@@ -63,8 +63,8 @@ export const researchTasks = [
     title: "低客单价露营配件验证",
     createdAt: "2026-05-26 14:08",
     status: "失败",
-    stage: "收集来源",
-    summary: "公开来源不足，建议放宽品类或补充目标渠道。",
+    stage: "生成草案",
+    summary: "基础推荐生成失败，建议放宽品类或补充目标渠道。",
     primaryHref: "/research/new",
     reportHref: "/reports/demo-report",
   },

@@ -2,8 +2,18 @@ import { z } from "zod";
 
 import { buildApiUrl } from "@/lib/api/client";
 
-export type ResearchTaskStatus = "created";
-export type ResearchTaskStage = "intake";
+export type ResearchTaskStatus =
+  | "created"
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed";
+export type ResearchTaskStage =
+  | "intake"
+  | "queued"
+  | "generate_opportunities"
+  | "completed"
+  | "failed";
 
 export type ResearchTask = {
   uuid: string;
@@ -22,6 +32,27 @@ export type ResearchTask = {
   run_id: string | null;
   trace_id: string | null;
   failure_reason: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type OpportunityRiskLevel = "low" | "medium" | "high";
+
+export type Opportunity = {
+  uuid: string;
+  research_task_uuid: string;
+  rank: number;
+  name: string;
+  product_direction: string;
+  target_audience: string;
+  recommendation_reason: string;
+  suitable_channels: string[];
+  price_band: string;
+  rough_margin: string;
+  risk_level: OpportunityRiskLevel;
+  priority_label: string;
+  next_step_summary: string;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -65,6 +96,7 @@ export async function createResearchTask(
 ): Promise<ResearchTask> {
   const payload = createResearchTaskSchema.parse(input);
   const response = await fetch(buildApiUrl("/api/v1/research-tasks"), {
+    cache: "no-store",
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -80,7 +112,9 @@ export async function createResearchTask(
 }
 
 export async function fetchResearchTasks(): Promise<ResearchTask[]> {
-  const response = await fetch(buildApiUrl("/api/v1/research-tasks"));
+  const response = await fetch(buildApiUrl("/api/v1/research-tasks"), {
+    cache: "no-store",
+  });
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));
@@ -90,7 +124,56 @@ export async function fetchResearchTasks(): Promise<ResearchTask[]> {
 }
 
 export async function fetchResearchTask(taskUuid: string): Promise<ResearchTask> {
-  const response = await fetch(buildApiUrl(`/api/v1/research-tasks/${taskUuid}`));
+  const response = await fetch(buildApiUrl(`/api/v1/research-tasks/${taskUuid}`), {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function startResearchRun(taskUuid: string): Promise<ResearchTask> {
+  const response = await fetch(
+    buildApiUrl(`/api/v1/research-tasks/${taskUuid}/runs`),
+    {
+      method: "POST",
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchTaskOpportunities(
+  taskUuid: string,
+): Promise<Opportunity[]> {
+  const response = await fetch(
+    buildApiUrl(`/api/v1/research-tasks/${taskUuid}/opportunities`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchOpportunity(
+  opportunityUuid: string,
+): Promise<Opportunity> {
+  const response = await fetch(buildApiUrl(`/api/v1/opportunities/${opportunityUuid}`), {
+    cache: "no-store",
+  });
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));

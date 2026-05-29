@@ -38,7 +38,6 @@ import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 import {
-  opportunities,
   productNavItems,
   researchStages,
   samplePrompts,
@@ -127,7 +126,7 @@ export function ProductShell({
           <div className="mx-5 mb-6 border-t pt-5">
             <div className="flex items-start gap-3 text-sm leading-6 text-muted-foreground">
               <CircleHelp className="mt-1 size-4 shrink-0" aria-hidden="true" />
-              <p>来源、供给、竞品、风险和验证计划会在详情与报告中逐步展开。</p>
+              <p>来源、供给、竞品、风险和验证计划会在后续切片中逐步展开。</p>
             </div>
           </div>
         </aside>
@@ -286,12 +285,12 @@ export function TaskStateCards() {
     {
       title: "运行中",
       icon: RefreshCcw,
-      body: "正在分析供给，后续会展示实时阶段和进度。",
+      body: "正在生成基础商机推荐，后续会展示实时阶段和进度。",
     },
     {
       title: "失败",
       icon: AlertTriangle,
-      body: "公开来源不足时展示失败原因，并提供重新运行入口。",
+      body: "生成失败时展示原因，并提供重新运行入口。",
     },
     {
       title: "完成",
@@ -333,7 +332,7 @@ export function ProductSummaryAside() {
         <CardContent className="grid gap-3 text-sm">
           <div className="flex items-center justify-between gap-3">
             <span className="text-muted-foreground">推荐商机</span>
-            <span className="font-medium">{opportunities.length} 个</span>
+            <span className="font-medium">3-5 个</span>
           </div>
           <Separator />
           <div className="flex items-center justify-between gap-3">
@@ -343,7 +342,7 @@ export function ProductSummaryAside() {
           <Separator />
           <div className="flex items-center justify-between gap-3">
             <span className="text-muted-foreground">关键判断</span>
-            <span className="font-medium">需求 / 供给 / 竞品 / 风险</span>
+            <span className="font-medium">需求 / 渠道 / 风险 / 行动</span>
           </div>
           <Separator />
           <div className="flex items-center justify-between gap-3">

@@ -1,8 +1,8 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { ArrowRight, RefreshCcw } from "lucide-react";
+import { ArrowRight, FileText, Play, RefreshCcw } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,14 +26,22 @@ import {
   StatusBadge,
 } from "@/features/product-skeleton/components";
 
-import { fetchResearchTasks, type ResearchTask } from "./api";
+import { fetchResearchTasks, startResearchRun, type ResearchTask } from "./api";
 
 const statusLabels: Record<ResearchTask["status"], string> = {
   created: "已创建",
+  queued: "运行中",
+  running: "运行中",
+  completed: "已完成",
+  failed: "失败",
 };
 
 const stageLabels: Record<ResearchTask["current_stage"], string> = {
   intake: "需求已提交",
+  queued: "等待后台执行",
+  generate_opportunities: "生成基础推荐",
+  completed: "基础推荐已生成",
+  failed: "生成失败",
 };
 
 function formatDate(value: string) {
@@ -46,6 +54,7 @@ function formatDate(value: string) {
 }
 
 export function ResearchTaskList() {
+  const queryClient = useQueryClient();
   const {
     data: tasks,
     error,
@@ -54,6 +63,13 @@ export function ResearchTaskList() {
   } = useQuery({
     queryKey: ["research-tasks"],
     queryFn: fetchResearchTasks,
+    refetchInterval: 5000,
+  });
+  const startRunMutation = useMutation({
+    mutationFn: startResearchRun,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["research-tasks"] });
+    },
   });
 
   if (isLoading) {
@@ -128,14 +144,11 @@ export function ResearchTaskList() {
                 <TableCell>{stageLabels[task.current_stage]}</TableCell>
                 <TableCell>{formatDate(task.created_at)}</TableCell>
                 <TableCell className="pr-5">
-                  <div className="flex justify-end gap-2">
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/research/tasks?task=${task.uuid}`}>
-                        查看任务
-                        <ArrowRight data-icon="inline-end" />
-                      </Link>
-                    </Button>
-                  </div>
+                  <TaskActions
+                    task={task}
+                    isStarting={startRunMutation.isPending}
+                    onStart={() => startRunMutation.mutate(task.uuid)}
+                  />
                 </TableCell>
               </TableRow>
             ))}
@@ -143,5 +156,64 @@ export function ResearchTaskList() {
         </Table>
       </CardContent>
     </Card>
+  );
+}
+
+function TaskActions({
+  task,
+  isStarting,
+  onStart,
+}: {
+  task: ResearchTask;
+  isStarting: boolean;
+  onStart: () => void;
+}) {
+  if (task.status === "completed") {
+    return (
+      <div className="flex justify-end gap-2">
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/opportunities?task=${task.uuid}`}>
+            商机
+            <ArrowRight data-icon="inline-end" />
+          </Link>
+        </Button>
+        <Button asChild variant="ghost" size="sm">
+          <Link href={`/reports/${task.uuid}`}>
+            <FileText data-icon="inline-start" />
+            报告
+          </Link>
+        </Button>
+      </div>
+    );
+  }
+
+  if (task.status === "queued" || task.status === "running") {
+    return (
+      <div className="flex justify-end">
+        <Button disabled variant="outline" size="sm">
+          <RefreshCcw data-icon="inline-start" />
+          运行中
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex justify-end">
+      <Button
+        type="button"
+        variant={task.status === "failed" ? "outline" : "default"}
+        size="sm"
+        disabled={isStarting}
+        onClick={onStart}
+      >
+        {task.status === "failed" ? (
+          <RefreshCcw data-icon="inline-start" />
+        ) : (
+          <Play data-icon="inline-start" />
+        )}
+        {task.status === "failed" ? "重新运行" : "开始研究"}
+      </Button>
+    </div>
   );
 }

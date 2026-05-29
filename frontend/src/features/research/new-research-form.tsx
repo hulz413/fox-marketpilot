@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { samplePrompts } from "@/features/product-skeleton/data";
 
-import { createResearchTask } from "./api";
+import { createResearchTask, startResearchRun } from "./api";
 
 const formSchema = z.object({
   brief: z.string().trim().min(1, "请填写自然语言需求。").max(2000),
@@ -84,7 +84,11 @@ export function NewResearchForm() {
   } = useForm<NewResearchFormValues>({ defaultValues });
 
   const createTaskMutation = useMutation({
-    mutationFn: createResearchTask,
+    mutationFn: async (input: Parameters<typeof createResearchTask>[0]) => {
+      const task = await createResearchTask(input);
+
+      return startResearchRun(task.uuid);
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["research-tasks"] });
       router.push("/research/tasks");
@@ -152,7 +156,7 @@ export function NewResearchForm() {
           </div>
           <CardTitle>研究需求</CardTitle>
           <CardDescription>
-            提交后会创建真实研究任务，后续研究执行会沿用这条任务记录。
+            提交后会创建真实研究任务，并启动基础商机推荐生成。
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -214,7 +218,7 @@ export function NewResearchForm() {
           </FieldGroup>
 
           <div className="flex flex-wrap gap-2">
-            {["轻库存优先", "毛利 30%+", "中文内容平台", "公开来源"].map((item) => (
+            {["轻库存优先", "毛利 30%+", "中文内容平台", "待验证推荐"].map((item) => (
               <Badge key={item} variant="secondary">
                 {item}
               </Badge>
@@ -223,7 +227,9 @@ export function NewResearchForm() {
 
           <div className="flex flex-wrap gap-3">
             <Button type="submit" disabled={isSubmitting || createTaskMutation.isPending}>
-              {isSubmitting || createTaskMutation.isPending ? "正在创建" : "创建任务"}
+              {isSubmitting || createTaskMutation.isPending
+                ? "正在启动"
+                : "创建并启动"}
               <ArrowRight data-icon="inline-end" />
             </Button>
             <Button
