@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     app_name: str = "MarketPilot API"
     environment: str = "local"
     log_level: str = "INFO"
+    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     database_url: str = (
         "postgresql+psycopg://marketpilot:marketpilot@localhost:5432/marketpilot"

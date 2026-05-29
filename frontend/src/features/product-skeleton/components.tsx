@@ -41,7 +41,6 @@ import {
   opportunities,
   productNavItems,
   researchStages,
-  researchTasks,
   samplePrompts,
   type NavKey,
 } from "./data";
@@ -338,10 +337,8 @@ export function ProductSummaryAside() {
           </div>
           <Separator />
           <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">运行任务</span>
-            <span className="font-medium">
-              {researchTasks.filter((task) => task.status === "运行中").length} 个
-            </span>
+            <span className="text-muted-foreground">研究任务</span>
+            <span className="font-medium">实时读取</span>
           </div>
           <Separator />
           <div className="flex items-center justify-between gap-3">
