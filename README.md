@@ -1,6 +1,6 @@
 # Fox MarketPilot
 
-MarketPilot 是面向国内中文演示场景的商机顾问 Agent。
+MarketPilot 是一个能帮助用户从需求信号、供给市场、竞品情况和风险角度，发现能用小成本快速验证的小生意机会的商机顾问 Agent。
 
 ## 仓库结构
 

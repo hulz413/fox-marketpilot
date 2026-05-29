@@ -1,0 +1,33 @@
+## Why
+
+当前前端仍停留在项目骨架占位页，用户首次打开产品时无法理解 MarketPilot 的商机顾问 Agent 形态，也无法看到后续 P0 演示闭环的入口。
+
+本 change 用已选定的浅色企业列表型风格建立产品级骨架，让用户能从清晰的研究入口、任务列表、商机推荐、最终报告和历史入口理解 MVP 流程，同时避免过早引入复杂经营后台。
+
+## What Changes
+
+- 将前端首页从项目骨架占位改为 MarketPilot 产品骨架。
+- 建立浅色企业列表型应用壳：左侧导航、顶部页面栏、中间主内容区，必要页面可预留右侧辅助区。
+- 产品主色固定为 `#2F6F4E` 深翡翠绿，并配合浅灰绿背景与中性边框形成默认视觉主题。
+- 左侧导航只保留 P0 必要入口：新建研究、研究任务、商机推荐、最终报告、研究历史。
+- 提供关键页面骨架和路由入口：研究任务列表、新建研究入口、商机推荐列表、商机详情占位、最终报告占位、研究历史占位。
+- 提供关键产品状态占位：首次空状态、示例研究入口、运行中、失败、完成。
+- 默认中文界面，演示数据使用国内商机场景文案，并预留后续英文 UI 切换位置。
+- 不实现真实研究任务创建、Agent 执行、SSE 进度流、数据库读写或真实报告生成。
+
+## Capabilities
+
+### New Capabilities
+
+- `product-skeleton`: 定义 MarketPilot 前端产品骨架、企业列表型应用壳、P0 必要导航、关键页面路由和基础页面状态。
+
+### Modified Capabilities
+
+- None.
+
+## Impact
+
+- Affected code: `frontend/src/app`, `frontend/src/components`, `frontend/src/features`, `frontend/src/lib`。
+- Affected UI: 首页、全局布局、导航结构、P0 页面骨架、空状态与演示数据。
+- Affected APIs: None. 本 change 仅预留前端 API/SSE 集成点，不新增或修改后端接口。
+- Dependencies: 使用既有 Next.js、TypeScript、Tailwind CSS、shadcn/ui 和 lucide icon 依赖，不新增第三方依赖。
