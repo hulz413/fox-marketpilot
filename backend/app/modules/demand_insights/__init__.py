@@ -1,0 +1,1 @@
+"""Demand insight domain."""

@@ -16,6 +16,7 @@ export type ResearchTaskStage =
   | "validate_results"
   | "persist_results"
   | "collect_research_sources"
+  | "generate_demand_insights"
   | "completed"
   | "failed";
 
@@ -120,6 +121,36 @@ export type ResearchSource = {
   linked_claim: string;
   support_level: SourceSupportLevel;
   collected_at: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type DemandInsightSourceStatus = "linked" | "no_sources" | "fallback";
+
+export type DemandInsightSourceSummary = {
+  uuid: string;
+  source_type: ResearchSourceType;
+  title: string;
+  url: string;
+  summary: string;
+  support_level: SourceSupportLevel;
+  relevance_note: string;
+};
+
+export type OpportunityDemandInsight = {
+  uuid: string;
+  research_task_uuid: string;
+  opportunity_uuid: string;
+  summary: string;
+  audience_profile: string;
+  use_cases: string[];
+  purchase_motivations: string[];
+  content_angles: string[];
+  trend_signals: string[];
+  seasonality_notes: string;
+  source_status: DemandInsightSourceStatus;
+  sources: DemandInsightSourceSummary[];
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -302,6 +333,40 @@ export async function fetchOpportunitySources(
 ): Promise<ResearchSource[]> {
   const response = await safeFetch(
     buildApiUrl(`/api/v1/opportunities/${opportunityUuid}/sources`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchTaskDemandInsights(
+  taskUuid: string,
+): Promise<OpportunityDemandInsight[]> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-tasks/${taskUuid}/demand-insights`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchOpportunityDemandInsight(
+  opportunityUuid: string,
+): Promise<OpportunityDemandInsight | null> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/opportunities/${opportunityUuid}/demand-insight`),
     {
       cache: "no-store",
     },

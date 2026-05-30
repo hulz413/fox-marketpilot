@@ -45,6 +45,7 @@ const stageLabels: Record<ResearchTask["current_stage"], string> = {
   validate_results: "校验推荐结果",
   persist_results: "保存研究结果",
   collect_research_sources: "收集公开来源线索",
+  generate_demand_insights: "生成需求洞察",
   completed: "基础推荐已生成",
   failed: "生成失败",
 };

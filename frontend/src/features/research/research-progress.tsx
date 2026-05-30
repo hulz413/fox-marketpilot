@@ -54,6 +54,7 @@ const stageLabels: Record<ResearchTaskStage, string> = {
   validate_results: "校验推荐结果",
   persist_results: "保存研究结果",
   collect_research_sources: "收集公开来源线索",
+  generate_demand_insights: "生成需求洞察",
   completed: "基础推荐已生成",
   failed: "生成失败",
 };
@@ -92,6 +93,11 @@ const stageTimeline: Array<{
     key: "collect_research_sources",
     label: "收集公开来源线索",
     description: "补充公开来源线索，作为后续判断的初步参考。",
+  },
+  {
+    key: "generate_demand_insights",
+    label: "生成需求洞察",
+    description: "拆解人群、场景、购买动机和内容种草角度。",
   },
   {
     key: "completed",

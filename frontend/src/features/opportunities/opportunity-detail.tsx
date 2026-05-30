@@ -20,6 +20,7 @@ import {
   type Opportunity,
   type OpportunityRiskLevel,
 } from "@/features/research/api";
+import { OpportunityDemandInsightPanel } from "@/features/research/demand-insights";
 
 const riskLabels: Record<OpportunityRiskLevel, string> = {
   low: "低",
@@ -141,6 +142,7 @@ function OpportunityDetailContent({ opportunity }: { opportunity: Opportunity })
           </section>
         </CardContent>
       </Card>
+      <OpportunityDemandInsightPanel opportunityUuid={opportunity.uuid} />
       <OpportunitySourceInsights opportunityUuid={opportunity.uuid} />
     </div>
   );

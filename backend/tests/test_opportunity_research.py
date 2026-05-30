@@ -193,6 +193,7 @@ def test_execute_research_run_generates_opportunities(
         "validate_results",
         "persist_results",
         "collect_research_sources",
+        "generate_demand_insights",
     ]
     assert all(event.status == agent_run_events_service.STATUS_COMPLETED for event in events)
     assert all(event.started_at is not None for event in events)
@@ -243,6 +244,7 @@ def test_research_progress_returns_completed_event_timeline(
         "validate_results",
         "persist_results",
         "collect_research_sources",
+        "generate_demand_insights",
     ]
     assert all(event["run_id"] == run_id for event in body["events"])
     assert all("id" not in event for event in body["events"])
@@ -478,6 +480,7 @@ def test_rerun_replaces_old_opportunities(
         "validate_results",
         "persist_results",
         "collect_research_sources",
+        "generate_demand_insights",
     }
     assert {event.stage for event in second_events} == {
         "opportunity_research",
@@ -486,6 +489,7 @@ def test_rerun_replaces_old_opportunities(
         "validate_results",
         "persist_results",
         "collect_research_sources",
+        "generate_demand_insights",
     }
 
 

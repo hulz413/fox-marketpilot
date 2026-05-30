@@ -27,6 +27,7 @@ import {
   type OpportunityRiskLevel,
 } from "@/features/research/api";
 import { TaskContextNavigation } from "@/features/product-skeleton/components";
+import { TaskDemandInsightSummary } from "@/features/research/demand-insights";
 import { TaskSourceInsights } from "@/features/research/source-insights";
 
 const riskLabels: Record<OpportunityRiskLevel, string> = {
@@ -137,6 +138,8 @@ function ReportContent({
           <SummaryBlock title="下一步行动" body={topOpportunity.next_step_summary} />
         </CardContent>
       </Card>
+
+      <TaskDemandInsightSummary opportunities={opportunities} taskUuid={taskUuid} />
 
       <TaskSourceInsights taskUuid={taskUuid} />
 

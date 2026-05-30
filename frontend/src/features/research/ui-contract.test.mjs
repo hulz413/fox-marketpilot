@@ -36,6 +36,17 @@ test("result pages include task context and source panels", () => {
 
   assert.match(report, /TaskContextNavigation/);
   assert.match(report, /TaskSourceInsights/);
+  assert.match(report, /TaskDemandInsightSummary/);
   assert.match(detail, /OpportunitySourceInsights/);
+  assert.match(detail, /OpportunityDemandInsightPanel/);
   assert.match(shell, /TaskContextNavigation/);
+});
+
+test("demand insights keep cautious copy and non-blocking states", () => {
+  const source = readSource("src/features/research/demand-insights.tsx");
+
+  assert.match(source, /需求洞察/);
+  assert.match(source, /初步参考/);
+  assert.match(source, /待验证/);
+  assert.match(source, /暂不可用/);
 });
