@@ -30,13 +30,6 @@ export const samplePrompts = [
   "面向租房办公人群，寻找低库存、可内容种草的桌面小物。",
 ];
 
-export const researchStages = [
-  { label: "归一化需求", detail: "整理预算、渠道、品类和限制条件", progress: 86 },
-  { label: "生成草案", detail: "基于任务输入生成待验证商机", progress: 64 },
-  { label: "校验结果", detail: "检查字段、排序、风险等级和数量", progress: 48 },
-  { label: "保存结果", detail: "写入商机推荐并更新任务状态", progress: 24 },
-];
-
 export const researchTasks = [
   {
     id: "task-demo-0528",

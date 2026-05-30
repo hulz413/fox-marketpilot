@@ -2,10 +2,7 @@ import Link from "next/link";
 import { ClipboardList } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  ProductShell,
-  ProductSummaryAside,
-} from "@/features/product-skeleton/components";
+import { ProductShell } from "@/features/product-skeleton/components";
 import { OpportunityDetail } from "@/features/opportunities/opportunity-detail";
 
 export default async function OpportunityDetailPage({
@@ -28,7 +25,6 @@ export default async function OpportunityDetailPage({
           </Link>
         </Button>
       }
-      aside={<ProductSummaryAside />}
     >
       <OpportunityDetail opportunityUuid={id} />
     </ProductShell>

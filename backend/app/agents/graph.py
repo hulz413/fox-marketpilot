@@ -21,6 +21,7 @@ from app.modules.opportunities.schemas import (
 )
 from app.modules.research_tasks.models import ResearchTask
 from app.modules.research_tasks.schemas import ResearchTaskStage, ResearchTaskStatus
+from app.modules.sources import service as sources_service
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ class ResearchGraphState(TypedDict, total=False):
     raw_result: dict[str, Any]
     opportunities: list[OpportunityGenerated]
     generator: OpportunityGenerator
+    stage_event: dict[str, Any]
 
 
 class OpportunityGenerationError(RuntimeError):
@@ -300,6 +302,84 @@ def persist_results(state: ResearchGraphState) -> dict[str, Any]:
     return {"task": task}
 
 
+def collect_research_sources(state: ResearchGraphState) -> dict[str, Any]:
+    db = state["db"]
+    task = state["task"]
+    run_id = state.get("run_id")
+
+    try:
+        result = sources_service.collect_research_sources(db, task)
+        task.status = ResearchTaskStatus.COMPLETED.value
+        task.current_stage = ResearchTaskStage.COMPLETED.value
+        task.failure_reason = None
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+
+        metadata = {
+            "source_collection_status": result.status,
+            "saved_source_count": result.saved_count,
+            "query_count": result.query_count,
+        }
+        logger.info(
+            "Collected research sources",
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                **metadata,
+            },
+        )
+
+        if result.status == "failed":
+            return {
+                "task": task,
+                "stage_event": {
+                    "status": "failed",
+                    "error_summary": result.error_summary
+                    or "来源收集失败，基础商机结果已保留。",
+                    "metadata": metadata,
+                },
+            }
+
+        if result.error_summary:
+            metadata["error_summary"] = result.error_summary
+
+        return {
+            "task": task,
+            "stage_event": {
+                "status": "completed",
+                "metadata": metadata,
+            },
+        }
+    except Exception as exc:  # pragma: no cover - defensive non-blocking fallback
+        db.rollback()
+        task.status = ResearchTaskStatus.COMPLETED.value
+        task.current_stage = ResearchTaskStage.COMPLETED.value
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+        logger.warning(
+            "Research source collection failed after opportunities were persisted",
+            exc_info=True,
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                "error_type": type(exc).__name__,
+            },
+        )
+        return {
+            "task": task,
+            "stage_event": {
+                "status": "failed",
+                "error_summary": "来源收集失败，基础商机结果已保留。",
+                "metadata": {
+                    "source_collection_status": "failed",
+                    "error_type": type(exc).__name__,
+                },
+            },
+        }
+
+
 def update_task_stage(
     db: Session,
     task: ResearchTask,
@@ -349,14 +429,40 @@ def observe_node(stage: ResearchTaskStage, node):
             ):
                 result = node(state)
 
-            agent_run_events_service.complete_stage(
-                db,
-                task,
-                run_id=run_id,
-                stage=stage.value,
-                trace_id=trace_id,
-                metadata=metadata,
+            stage_event = (
+                result.pop("stage_event", None)
+                if isinstance(result, dict)
+                else None
             )
+            completion_metadata = dict(metadata)
+            if isinstance(stage_event, dict):
+                completion_metadata.update(stage_event.get("metadata") or {})
+
+            if (
+                isinstance(stage_event, dict)
+                and stage_event.get("status") == "failed"
+            ):
+                agent_run_events_service.fail_stage(
+                    db,
+                    task,
+                    run_id=run_id,
+                    stage=stage.value,
+                    trace_id=trace_id,
+                    error_summary=str(
+                        stage_event.get("error_summary")
+                        or "阶段执行失败，请查看任务失败原因。"
+                    ),
+                    metadata=completion_metadata,
+                )
+            else:
+                agent_run_events_service.complete_stage(
+                    db,
+                    task,
+                    run_id=run_id,
+                    stage=stage.value,
+                    trace_id=trace_id,
+                    metadata=completion_metadata,
+                )
             return result
         except Exception as exc:
             db.rollback()
@@ -392,10 +498,18 @@ def build_research_graph():
         "persist_results",
         observe_node(ResearchTaskStage.PERSIST_RESULTS, persist_results),
     )
+    graph.add_node(
+        "collect_research_sources",
+        observe_node(
+            ResearchTaskStage.COLLECT_RESEARCH_SOURCES,
+            collect_research_sources,
+        ),
+    )
     graph.add_edge(START, "normalize_intake")
     graph.add_edge("normalize_intake", "generate_opportunities")
     graph.add_edge("generate_opportunities", "validate_results")
     graph.add_edge("validate_results", "persist_results")
-    graph.add_edge("persist_results", END)
+    graph.add_edge("persist_results", "collect_research_sources")
+    graph.add_edge("collect_research_sources", END)
 
     return graph.compile()

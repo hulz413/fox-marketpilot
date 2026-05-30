@@ -35,6 +35,7 @@ FAILURE_STAGE_LABELS = {
     ResearchTaskStage.GENERATE_OPPORTUNITIES.value: "基础商机生成",
     ResearchTaskStage.VALIDATE_RESULTS.value: "结果校验",
     ResearchTaskStage.PERSIST_RESULTS.value: "结果保存",
+    ResearchTaskStage.COLLECT_RESEARCH_SOURCES.value: "来源收集",
 }
 
 
@@ -243,6 +244,9 @@ def make_failure_reason(stage: str, exc: Exception) -> str:
 
     if stage == ResearchTaskStage.PERSIST_RESULTS.value:
         return "基础商机生成失败：结果保存失败，请稍后重试。"
+
+    if stage == ResearchTaskStage.COLLECT_RESEARCH_SOURCES.value:
+        return "基础商机已生成，但来源收集失败；结果已保留，可稍后重试。"
 
     if stage == ResearchTaskStage.VALIDATE_RESULTS.value:
         return "基础商机生成失败：结果校验失败，请稍后重试。"

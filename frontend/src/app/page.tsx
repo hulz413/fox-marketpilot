@@ -4,7 +4,6 @@ import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   ProductShell,
-  ProductSummaryAside,
   TaskStateCards,
 } from "@/features/product-skeleton/components";
 import { ResearchTaskList } from "@/features/research/research-task-list";
@@ -23,7 +22,6 @@ export default function HomePage() {
           </Link>
         </Button>
       }
-      aside={<ProductSummaryAside />}
     >
       <div className="grid gap-5">
         <TaskStateCards />

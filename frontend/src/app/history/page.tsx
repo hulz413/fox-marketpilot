@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/table";
 import {
   ProductShell,
-  ProductSummaryAside,
   StatusBadge,
 } from "@/features/product-skeleton/components";
 import { historyRows } from "@/features/product-skeleton/data";
@@ -35,7 +34,6 @@ export default function HistoryPage() {
           <Link href="/research/new">新建研究</Link>
         </Button>
       }
-      aside={<ProductSummaryAside />}
     >
         <Card className="overflow-hidden rounded-lg py-0 shadow-none">
           <CardHeader className="border-b px-5 py-4">

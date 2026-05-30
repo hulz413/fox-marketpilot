@@ -10,10 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  ProductShell,
-  ProductSummaryAside,
-} from "@/features/product-skeleton/components";
+import { ProductShell } from "@/features/product-skeleton/components";
 import { OpportunityList } from "@/features/opportunities/opportunity-list";
 
 export default function OpportunitiesPage() {
@@ -30,7 +27,6 @@ export default function OpportunitiesPage() {
           </Link>
         </Button>
       }
-      aside={<ProductSummaryAside />}
     >
       <Suspense fallback={<OpportunityListFallback />}>
         <OpportunityList />

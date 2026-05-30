@@ -52,6 +52,7 @@ const stageLabels: Record<ResearchTaskStage, string> = {
   generate_opportunities: "生成基础推荐",
   validate_results: "校验推荐结果",
   persist_results: "保存研究结果",
+  collect_research_sources: "收集公开来源线索",
   completed: "基础推荐已生成",
   failed: "生成失败",
 };
@@ -85,6 +86,11 @@ const stageTimeline: Array<{
     key: "persist_results",
     label: "保存研究结果",
     description: "写入商机推荐并更新任务状态。",
+  },
+  {
+    key: "collect_research_sources",
+    label: "收集公开来源线索",
+    description: "补充公开来源线索，作为后续判断的初步参考。",
   },
   {
     key: "completed",

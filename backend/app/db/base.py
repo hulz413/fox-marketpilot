@@ -8,3 +8,4 @@ class Base(DeclarativeBase):
 import app.modules.research_tasks.models  # noqa: E402,F401
 import app.modules.opportunities.models  # noqa: E402,F401
 import app.modules.agent_runs.models  # noqa: E402,F401
+import app.modules.sources.models  # noqa: E402,F401

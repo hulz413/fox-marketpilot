@@ -1,1 +1,1 @@
-"""Research source domain placeholder."""
+"""Research source domain."""

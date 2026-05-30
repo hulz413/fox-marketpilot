@@ -2,10 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  ProductShell,
-  ProductSummaryAside,
-} from "@/features/product-skeleton/components";
+import { ProductShell } from "@/features/product-skeleton/components";
 import { NewResearchForm } from "@/features/research/new-research-form";
 
 export default function NewResearchPage() {
@@ -22,7 +19,6 @@ export default function NewResearchPage() {
           </Link>
         </Button>
       }
-      aside={<ProductSummaryAside />}
     >
       <NewResearchForm />
     </ProductShell>

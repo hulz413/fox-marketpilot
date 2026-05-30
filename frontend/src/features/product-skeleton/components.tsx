@@ -34,15 +34,9 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
-import {
-  productNavItems,
-  researchStages,
-  samplePrompts,
-  type NavKey,
-} from "./data";
+import { productNavItems, samplePrompts, type NavKey } from "./data";
 
 type ProductShellProps = {
   active: NavKey;
@@ -222,36 +216,6 @@ export function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export function ProgressRail() {
-  return (
-    <Card className="rounded-lg">
-      <CardHeader>
-        <CardTitle>Agent 运行状态</CardTitle>
-        <CardDescription>研究执行时会展示实时阶段和进度。</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        {researchStages.map((stage) => (
-          <div key={stage.label} className="grid gap-2">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium">{stage.label}</p>
-                <p className="text-xs text-muted-foreground">{stage.detail}</p>
-              </div>
-              <span className="text-sm font-medium">{stage.progress}%</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-secondary">
-              <div
-                className="h-full rounded-full bg-primary"
-                style={{ width: `${stage.progress}%` }}
-              />
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
 export function EmptyResearchState() {
   return (
     <Card className="rounded-lg border-dashed">
@@ -316,41 +280,6 @@ export function TaskStateCards() {
           </Card>
         );
       })}
-    </div>
-  );
-}
-
-export function ProductSummaryAside() {
-  return (
-    <div className="grid gap-5">
-      <ProgressRail />
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle>演示输出</CardTitle>
-          <CardDescription>围绕一次小预算商机研究闭环。</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 text-sm">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">推荐商机</span>
-            <span className="font-medium">3-5 个</span>
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">研究任务</span>
-            <span className="font-medium">实时读取</span>
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">关键判断</span>
-            <span className="font-medium">需求 / 渠道 / 风险 / 行动</span>
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">输出材料</span>
-            <span className="font-medium">排行 / 详情 / 验证计划</span>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

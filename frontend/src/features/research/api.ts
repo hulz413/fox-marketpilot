@@ -15,6 +15,7 @@ export type ResearchTaskStage =
   | "generate_opportunities"
   | "validate_results"
   | "persist_results"
+  | "collect_research_sources"
   | "completed"
   | "failed";
 
@@ -91,6 +92,34 @@ export type Opportunity = {
   risk_level: OpportunityRiskLevel;
   priority_label: string;
   next_step_summary: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type ResearchSourceType =
+  | "demand"
+  | "supply"
+  | "competitor"
+  | "risk"
+  | "general";
+export type SourceSupportLevel = "weak" | "medium" | "strong";
+
+export type ResearchSource = {
+  uuid: string;
+  research_task_uuid: string;
+  opportunity_uuid: string | null;
+  source_type: ResearchSourceType;
+  title: string;
+  url: string;
+  summary: string;
+  snippet: string;
+  publisher: string | null;
+  score: number | null;
+  query: string | null;
+  linked_claim: string;
+  support_level: SourceSupportLevel;
+  collected_at: string;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -239,6 +268,40 @@ export async function fetchOpportunity(
 ): Promise<Opportunity> {
   const response = await safeFetch(
     buildApiUrl(`/api/v1/opportunities/${opportunityUuid}`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchTaskSources(
+  taskUuid: string,
+): Promise<ResearchSource[]> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-tasks/${taskUuid}/sources`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchOpportunitySources(
+  opportunityUuid: string,
+): Promise<ResearchSource[]> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/opportunities/${opportunityUuid}/sources`),
     {
       cache: "no-store",
     },

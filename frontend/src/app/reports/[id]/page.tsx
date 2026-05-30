@@ -2,10 +2,7 @@ import Link from "next/link";
 import { BarChart3, ClipboardList } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  ProductShell,
-  ProductSummaryAside,
-} from "@/features/product-skeleton/components";
+import { ProductShell } from "@/features/product-skeleton/components";
 import { ReportSummary } from "@/features/reports/report-summary";
 
 export default async function ReportPage({
@@ -36,7 +33,6 @@ export default async function ReportPage({
           </Button>
         </div>
       }
-      aside={<ProductSummaryAside />}
     >
       <ReportSummary taskUuid={id} />
     </ProductShell>

@@ -15,6 +15,7 @@ def isolate_external_service_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[No
     monkeypatch.setenv("LANGSMITH_PROJECT", "marketpilot-test")
     monkeypatch.setenv("LANGSMITH_ENDPOINT", "")
     monkeypatch.setenv("LANGSMITH_WORKSPACE_ID", "")
+    monkeypatch.setenv("TAVILY_API_KEY", "")
     monkeypatch.setenv("LLM_API_KEY", "")
     get_settings.cache_clear()
 

@@ -2,10 +2,7 @@ import Link from "next/link";
 import { ClipboardList } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  ProductShell,
-  ProductSummaryAside,
-} from "@/features/product-skeleton/components";
+import { ProductShell } from "@/features/product-skeleton/components";
 import { ResearchProgressView } from "@/features/research/research-progress";
 
 export default async function ResearchTaskProgressPage({
@@ -28,7 +25,6 @@ export default async function ResearchTaskProgressPage({
           </Link>
         </Button>
       }
-      aside={<ProductSummaryAside />}
     >
       <ResearchProgressView taskUuid={id} />
     </ProductShell>
