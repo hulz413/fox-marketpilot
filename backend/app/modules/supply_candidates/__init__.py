@@ -1,0 +1,1 @@
+"""Supply candidate domain module."""

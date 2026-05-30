@@ -62,8 +62,10 @@ test("result pages include task context and source panels", () => {
   assert.match(report, /TaskContextNavigation/);
   assert.match(report, /TaskSourceInsights/);
   assert.match(report, /TaskDemandInsightSummary/);
+  assert.match(report, /TaskSupplyCandidateSummary/);
   assert.match(detail, /OpportunitySourceInsights/);
   assert.match(detail, /OpportunityDemandInsightPanel/);
+  assert.match(detail, /OpportunitySupplyCandidatePanel/);
   assert.match(shell, /TaskContextNavigation/);
 });
 
@@ -74,4 +76,15 @@ test("demand insights keep cautious copy and non-blocking states", () => {
   assert.match(source, /初步参考/);
   assert.match(source, /待验证/);
   assert.match(source, /暂不可用/);
+});
+
+test("supply candidates keep cautious copy and non-blocking states", () => {
+  const source = readSource("src/features/research/supply-candidates.tsx");
+
+  assert.match(source, /货源候选/);
+  assert.match(source, /候选/);
+  assert.match(source, /初步参考/);
+  assert.match(source, /待确认/);
+  assert.match(source, /待验证/);
+  assert.match(source, /货源候选暂不可用/);
 });

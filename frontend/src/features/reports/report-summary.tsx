@@ -29,6 +29,7 @@ import {
 import { TaskContextNavigation } from "@/features/product-skeleton/components";
 import { TaskDemandInsightSummary } from "@/features/research/demand-insights";
 import { TaskSourceInsights } from "@/features/research/source-insights";
+import { TaskSupplyCandidateSummary } from "@/features/research/supply-candidates";
 
 const riskLabels: Record<OpportunityRiskLevel, string> = {
   low: "低",
@@ -140,6 +141,8 @@ function ReportContent({
       </Card>
 
       <TaskDemandInsightSummary opportunities={opportunities} taskUuid={taskUuid} />
+
+      <TaskSupplyCandidateSummary opportunities={opportunities} taskUuid={taskUuid} />
 
       <TaskSourceInsights taskUuid={taskUuid} />
 

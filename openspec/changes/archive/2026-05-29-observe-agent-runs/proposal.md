@@ -1,10 +1,10 @@
-## Why
+## 为什么
 
 当前 P0 已经跑通“创建任务 -> 启动基础研究 -> 生成商机结果 -> 查看列表/详情/报告”的最短闭环，但 Agent 执行链路仍主要依赖应用日志和任务状态字段，演示和排障时很难证明每个研究节点、LLM 调用和失败阶段具体发生了什么。
 
 本 change 用最小可验证范围补齐 Agent 运行可观测性：每次研究运行都能关联 LangSmith trace、任务记录和基础错误日志，为后续更细的研究进度页提供可信数据基础。
 
-## What Changes
+## 变更内容
 
 - 为基础商机研究运行引入 Agent run observability 能力，覆盖 trace id、run id、task uuid、阶段、耗时、错误摘要和运行结果。
 - 将 LangGraph 研究节点和 LLM 调用接入 LangSmith tracing；无 LangSmith 环境变量时仍能正常运行和通过测试。
@@ -15,18 +15,18 @@
 - 不新增面向用户的完整进度页；更细的用户侧进度展示留给 `show-research-progress`。
 - 不引入外部搜索、来源收集、RAG、竞品分析或多 Agent 协作。
 
-## Capabilities
+## 能力
 
-### New Capabilities
+### 新增能力
 
 - `agent-run-observability`: 定义 Agent 研究运行的 tracing、日志关联、阶段耗时和失败定位能力。
 
-### Modified Capabilities
+### 修改能力
 
 - `research-tasks`: 研究任务在执行后需要能返回与当前运行关联的 trace ID 和失败摘要。
 - `opportunity-research`: 基础商机研究运行需要在 LangGraph 节点和 LLM 调用层面产生可观测事件，并在失败时定位失败阶段。
 
-## Impact
+## 影响
 
 - 后端 Agent 运行时：`backend/app/agents/graph.py`
 - 后端研究任务生命周期：`backend/app/modules/research_tasks/*`

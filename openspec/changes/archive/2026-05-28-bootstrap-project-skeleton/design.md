@@ -4,7 +4,7 @@ MarketPilot 当前是文档优先的仓库，已有 `docs/techstack.md`、`docs/
 
 技术栈已经将产品拆成 Vercel 承载的 Next.js 前端，以及 Railway 承载的 FastAPI 后端和 Celery worker。本地开发时，应用进程运行在宿主机；Docker Compose 只负责 PostgreSQL + pgvector、Redis 和 MinIO 等依赖服务。
 
-## 目标与非目标
+## 目标 / 非目标
 
 **目标：**
 
@@ -21,7 +21,7 @@ MarketPilot 当前是文档优先的仓库，已有 `docs/techstack.md`、`docs/
 - 不加入认证、支付、团队协作或 MVP roadmap 之外的功能。
 - 在出现真实共享代码之前，不引入 shared package monorepo 结构。
 
-## 设计决策
+## 技术决策
 
 ### 使用 `frontend/` 和 `backend/`，而不是 `apps/web` 和 `apps/api`
 
@@ -71,7 +71,7 @@ Context7 查询到的 FastAPI larger applications 文档推荐使用 `app` packa
 
 备选方案是 pnpm、bun、poetry 或 uv。这些工具都有价值，但当前技术栈未指定它们；先用默认工具可以减少项目骨架阶段的工具决策成本，后续需要时再通过独立 change 迁移。
 
-## 风险与取舍
+## 风险 / 取舍
 
 - [Risk] 骨架可能比第一个 P0 切片需要的内容更多 -> Mitigation: 只创建最小占位文件，不在 bootstrap 阶段实现产品行为。
 - [Risk] 依赖版本可能在 proposal 和 implementation 之间变化 -> Mitigation: apply 阶段使用当前包管理器解析结果并提交 lockfile。
@@ -89,6 +89,6 @@ Context7 查询到的 FastAPI larger applications 文档推荐使用 `app` packa
 
 如果需要回滚，因为当前还没有生产数据或既有应用行为，删除新增骨架目录并还原 README 变更即可。
 
-## 待确认问题
+## 开放问题
 
 - API client generation 应该在第一个真实后端接口出现后立即引入，还是等 API 面扩大后再引入？

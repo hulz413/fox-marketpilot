@@ -15,7 +15,7 @@ def utc_now() -> datetime:
 
 
 class OpportunityDemandInsight(Base):
-    __tablename__ = "opportunity_demand_insights"
+    __tablename__ = "demand_insights"
     __table_args__ = (
         Index(
             "ix_demand_insights_task_deleted_at",
@@ -83,7 +83,7 @@ class OpportunityDemandInsight(Base):
 
 
 class OpportunityDemandInsightSource(Base):
-    __tablename__ = "opportunity_demand_insight_sources"
+    __tablename__ = "demand_insight_sources"
     __table_args__ = (
         Index(
             "ix_demand_insight_sources_insight_deleted_at",
@@ -106,7 +106,7 @@ class OpportunityDemandInsightSource(Base):
         default=uuid_pkg.uuid4,
     )
     demand_insight_id: Mapped[int] = mapped_column(
-        ForeignKey("opportunity_demand_insights.id"),
+        ForeignKey("demand_insights.id"),
         nullable=False,
     )
     research_source_id: Mapped[int] = mapped_column(

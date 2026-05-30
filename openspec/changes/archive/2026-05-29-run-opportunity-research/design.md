@@ -151,7 +151,7 @@ LLM prompt 明确要求中文输出、国内商机演示语境、小成本验证
 
 Rollback 时可以停止调用 run endpoint，回退前端到任务列表入口，并回滚 `opportunities` migration。`research_tasks` 新增状态值不会破坏已有 `created` 任务。
 
-## 待确认问题
+## 开放问题
 
 - 前端新建任务成功后是否立即自动调用 run endpoint，还是让用户在任务列表点击“开始研究”？建议本 change 先在创建成功后自动启动，以满足最短演示闭环，同时任务列表保留手动开始/重试入口。
 - 是否在本 change 中为报告页新增 `/reports/{task_uuid}` 的真实路由？建议只做基础汇总读取，不新增独立 report 表。

@@ -62,6 +62,7 @@ const stageLabels: Record<ResearchTask["current_stage"], string> = {
   persist_results: "保存研究结果",
   collect_research_sources: "收集公开来源线索",
   generate_demand_insights: "生成需求洞察",
+  generate_supply_candidates: "生成货源候选",
   completed: "基础推荐已生成",
   failed: "生成失败",
 };

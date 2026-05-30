@@ -1,4 +1,4 @@
-## Context
+## 背景
 
 `run-opportunity-research` 已经让研究任务通过 Celery 和 LangGraph 单图工作流生成基础商机结果。当前任务模型已经预留 `run_id`、`trace_id` 和 `failure_reason`，但 `trace_id` 仍为空，LangSmith 环境配置函数尚未接入运行路径，LangGraph 节点和 OpenAI-compatible LLM 调用也没有统一的 trace metadata。
 
@@ -6,9 +6,9 @@ LangSmith Python tracing 的推荐启用路径是 `LANGSMITH_TRACING=true`、`LA
 
 数据库层面需要新增轻量的 `agent_run_events` 表，用于保存每次研究运行的阶段历史、耗时和失败摘要。该表遵循项目数据库通用字段规范：包含内部自增 `id`、公开 `uuid`、`created_at`、`updated_at` 和 `deleted_at`；通过 `research_task_id` 关联内部任务记录，通过 `run_id`、`trace_id`、`stage`、`status`、`started_at`、`completed_at`、`duration_ms`、`error_summary` 和可选 metadata 保存运行事件。对外暴露时使用公开 UUID、任务 UUID、run ID 和 trace ID，不暴露内部自增 ID。软删除读取行为不变：默认只读取 `deleted_at` 为空的任务、商机和运行事件。
 
-## Goals / Non-Goals
+## 目标 / 非目标
 
-**Goals:**
+**目标：**
 
 - 每次基础商机研究运行都有稳定的 `run_id`，并在 LangSmith tracing 启用时回写可用的 `trace_id`。
 - LangSmith trace 能把一次研究运行、LangGraph 节点、LLM 调用和关键 metadata 串在一起。
@@ -17,52 +17,52 @@ LangSmith Python tracing 的推荐启用路径是 `LANGSMITH_TRACING=true`、`LA
 - 无 LangSmith 环境变量时，系统仍能执行研究、生成结果和通过自动化测试；此时 `trace_id` 可以为空。
 - 失败时保留中文可展示失败摘要，并在日志或 trace 中定位失败阶段。
 
-**Non-Goals:**
+**非目标：**
 
 - 不新增用户侧完整进度页，不实现 SSE 实时流式进度。
 - 不新增外部搜索、来源收集、RAG、竞品分析、多 Agent 协作或评测集。
 - 不新增日志查询 UI；完整阶段历史和耗时先作为后端数据能力落库，用户侧展示留给 `show-research-progress`。
 - 不要求测试环境访问真实 LangSmith 服务或真实 LLM 服务。
 
-## Decisions
+## 技术决策
 
-### Decision 1: 使用任务字段和运行事件表共同作为观测锚点
+### 决策 1：使用任务字段和运行事件表共同作为观测锚点
 
 继续使用 `research_tasks.run_id`、`trace_id` 和 `failure_reason` 保存任务当前运行摘要，同时新增 `agent_run_events` 表保存完整阶段历史和耗时。`run_id` 在启动运行时生成；`trace_id` 在 traced root run 可用后尽早回写；失败时 `failure_reason` 保持中文、简短、可展示。每个阶段事件通过任务内部 ID、run ID 和 trace ID 关联到同一次运行。
 
 备选方案是只依赖 LangSmith 和结构化日志。该方案实现更轻，但后续 `show-research-progress` 无法稳定读取完整阶段历史和耗时，因此不采用。
 
-### Decision 2: 在研究运行入口建立 root trace
+### 决策 2：在研究运行入口建立 root trace
 
 在 `execute_research_run` 或其邻近封装中建立 root run，例如 `opportunity_research`，并附加 `task_uuid`、`run_id`、`environment`、`research_boundary` 等 metadata。LangSmith tracing 启用时，通过当前 run tree 获取 `trace_id` 并保存到任务；未启用或不可用时不阻断主流程。
 
 备选方案是在每个 LangGraph 节点单独创建 trace。这样会导致一次研究运行被拆成多条 trace，不利于演示和排障，因此不采用。
 
-### Decision 3: 节点级观测与任务阶段保持一致但不过度产品化
+### 决策 3：节点级观测与任务阶段保持一致但不过度产品化
 
 LangGraph 节点按现有工作流记录阶段事件：`normalize_intake`、`generate_opportunities`、`validate_results`、`persist_results`。每个阶段至少记录开始时间、完成或失败时间、耗时、状态和错误摘要。运行中可以将 `current_stage` 更新为更细阶段，以便任务列表和后续进度页读取；前端只需补齐阶段 label，不创建新的进度页。
 
 备选方案是继续只使用 `generate_opportunities` 一个阶段。这样改动更小，但无法满足“主要 Agent 节点可观测”和“失败阶段可定位”的目标。
 
-### Decision 4: LLM 调用使用 LangSmith wrapper 或 traceable 边界
+### 决策 4：LLM 调用使用 LangSmith wrapper 或 traceable 边界
 
 对现有 OpenAI-compatible client 使用 LangSmith 的 OpenAI wrapper，或在 `LLMOpportunityGenerator.generate` 外层使用 `traceable(run_type="llm")`，并附加 `llm_provider`、`llm_model`、`task_uuid` 和 `run_id` metadata。DeepSeek 仍通过现有 OpenAI-compatible 配置访问。
 
 备选方案是手写 LangSmith RunTree 包裹每次 LLM 调用。它控制力更强，但样板代码更多，不适合当前轻量单图工作流。
 
-### Decision 5: 可观测失败不覆盖业务失败
+### 决策 5：可观测失败不覆盖业务失败
 
 LangSmith 初始化、trace id 获取或 metadata 写入失败时只记录 warning，不让研究任务失败。只有 Agent 执行、LLM 调用、结构化解析、结果校验或持久化失败才会把任务置为 `failed`。
 
 备选方案是 tracing 失败即任务失败。该方案会让观测系统影响核心演示闭环，风险不成比例。
 
-### Decision 6: LangSmith 入口放在任务行和未来进度页
+### 决策 6：LangSmith 入口放在任务行和未来进度页
 
 本 change 先在现有 `/research/tasks` 任务列表的操作区提供可选外链入口：任务已有 trace URL 时展示“LangSmith”或外链图标，点击后在新标签打开对应 trace。后续 `show-research-progress` 可以在任务进度页的运行信息区复用同一字段，作为更自然的排障入口。
 
 备选方案是新增全局“可观测性”页面。它会把用户从业务任务上下文中拿走，而且需要额外聚合 run、log 和 metrics，本阶段收益不如任务级入口直接。
 
-### Decision 7: LangSmith project 不写死，按环境配置
+### 决策 7：LangSmith project 不写死，按环境配置
 
 代码不固定写死 `marketpilot`，而是继续通过 `LANGSMITH_PROJECT` 路由 trace。推荐命名按环境区分：开发和演示环境使用 `marketpilot-dev`，生产环境使用 `marketpilot-prod`。实现上必须保持 env 可配置。
 
@@ -90,7 +90,7 @@ LANGSMITH_WORKSPACE_ID=<workspace-id-if-required>
 
 备选方案是所有环境固定使用 `marketpilot`。该方案设置简单，但本地调试、演示和生产 trace 会混在一起，不利于后续排障、评测和权限管理。
 
-## Risks / Trade-offs
+## 风险 / 取舍
 
 - [Risk] LangSmith 包装 OpenAI-compatible DeepSeek client 时 token usage 或成本字段可能不完整。  
   Mitigation: 仍记录输入、输出、模型名、耗时和错误；成本统计不作为本 change 验收条件。
@@ -107,7 +107,7 @@ LANGSMITH_WORKSPACE_ID=<workspace-id-if-required>
 - [Risk] Celery worker 和 API 进程环境变量不一致会导致 API 记录与 worker 产出的 trace 分散到不同 project，或本地 API 可见配置但 worker 不产出 trace。  
   Mitigation: 本地统一写入 `backend/.env`；线上 Railway Web Service 和 Worker Service 使用相同的 `LANGSMITH_TRACING`、`LANGSMITH_API_KEY` 和 `LANGSMITH_PROJECT`。
 
-## Migration Plan
+## 迁移计划
 
 1. 新增 `agent_run_events` Alembic migration，遵循内部自增 ID、公开 UUID、时间戳和软删除字段规范。
 2. 复用现有 `research_tasks.trace_id` 字段保存当前运行 trace 摘要。
@@ -119,6 +119,6 @@ LANGSMITH_WORKSPACE_ID=<workspace-id-if-required>
 
 Rollback 策略：关闭 `LANGSMITH_TRACING` 即可停用真实 trace；代码仍保留基础日志和任务状态，不影响研究任务执行。
 
-## Open Questions
+## 开放问题
 
 暂无。已确认后续 `show-research-progress` 需要完整阶段历史和耗时落库；LangSmith project 不在代码中写死，推荐通过 `LANGSMITH_PROJECT` 按环境配置。

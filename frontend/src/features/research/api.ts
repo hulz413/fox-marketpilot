@@ -17,6 +17,7 @@ export type ResearchTaskStage =
   | "persist_results"
   | "collect_research_sources"
   | "generate_demand_insights"
+  | "generate_supply_candidates"
   | "completed"
   | "failed";
 
@@ -151,6 +152,38 @@ export type OpportunityDemandInsight = {
   seasonality_notes: string;
   source_status: DemandInsightSourceStatus;
   sources: DemandInsightSourceSummary[];
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type SupplyCandidateSourceStatus = "linked" | "no_sources" | "fallback";
+
+export type SupplyCandidateSourceSummary = {
+  uuid: string;
+  source_type: ResearchSourceType;
+  title: string;
+  url: string;
+  summary: string;
+  support_level: SourceSupportLevel;
+  relevance_note: string;
+};
+
+export type OpportunitySupplyCandidate = {
+  uuid: string;
+  research_task_uuid: string;
+  opportunity_uuid: string;
+  rank: number;
+  candidate_name: string;
+  supply_market: string;
+  search_keywords: string[];
+  price_range: string;
+  minimum_order_quantity: string;
+  specification_notes: string[];
+  supplier_questions: string[];
+  recommendation_note: string;
+  source_status: SupplyCandidateSourceStatus;
+  sources: SupplyCandidateSourceSummary[];
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -394,6 +427,40 @@ export async function fetchOpportunityDemandInsight(
 ): Promise<OpportunityDemandInsight | null> {
   const response = await safeFetch(
     buildApiUrl(`/api/v1/opportunities/${opportunityUuid}/demand-insight`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchTaskSupplyCandidates(
+  taskUuid: string,
+): Promise<OpportunitySupplyCandidate[]> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-tasks/${taskUuid}/supply-candidates`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchOpportunitySupplyCandidates(
+  opportunityUuid: string,
+): Promise<OpportunitySupplyCandidate[]> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/opportunities/${opportunityUuid}/supply-candidates`),
     {
       cache: "no-store",
     },

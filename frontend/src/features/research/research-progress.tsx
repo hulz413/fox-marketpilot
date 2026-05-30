@@ -55,6 +55,7 @@ const stageLabels: Record<ResearchTaskStage, string> = {
   persist_results: "保存研究结果",
   collect_research_sources: "收集公开来源线索",
   generate_demand_insights: "生成需求洞察",
+  generate_supply_candidates: "生成货源候选",
   completed: "基础推荐已生成",
   failed: "生成失败",
 };
@@ -100,9 +101,14 @@ const stageTimeline: Array<{
     description: "拆解人群、场景、购买动机和内容种草角度。",
   },
   {
+    key: "generate_supply_candidates",
+    label: "生成货源候选",
+    description: "整理候选找货方向、初步参考信息和供应商待确认问题。",
+  },
+  {
     key: "completed",
     label: "完成",
-    description: "基础商机推荐已经可以查看。",
+    description: "基础商机推荐和可用增强信息已经可以查看。",
   },
 ];
 
@@ -344,7 +350,7 @@ function getProgressMessage(
   completedStageCount: number,
 ) {
   if (progress.status === "completed") {
-    return "基础商机推荐已经生成，可以继续查看商机列表、详情和基础报告。";
+    return "基础商机推荐已经生成，可以继续查看商机列表、详情、货源候选和基础报告。";
   }
 
   if (progress.status === "failed") {
