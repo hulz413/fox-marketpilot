@@ -88,3 +88,14 @@ test("supply candidates keep cautious copy and non-blocking states", () => {
   assert.match(source, /待验证/);
   assert.match(source, /货源候选暂不可用/);
 });
+
+test("interactive controls use pointer cursor while disabled controls do not", () => {
+  const button = readSource("src/components/ui/button.tsx");
+  const dropdown = readSource("src/components/ui/dropdown-menu.tsx");
+
+  assert.match(button, /cursor-pointer/);
+  assert.match(button, /disabled:cursor-not-allowed/);
+  assert.doesNotMatch(button, /cursor-default/);
+  assert.match(dropdown, /cursor-pointer/);
+  assert.match(dropdown, /data-\[disabled\]:cursor-not-allowed/);
+});
