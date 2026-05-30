@@ -5,7 +5,11 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.modules.research_tasks import service
-from app.modules.research_tasks.schemas import ResearchTaskCreate, ResearchTaskRead
+from app.modules.research_tasks.schemas import (
+    ResearchTaskCreate,
+    ResearchTaskProgressRead,
+    ResearchTaskRead,
+)
 
 router = APIRouter(prefix="/research-tasks")
 
@@ -41,6 +45,19 @@ def get_research_task(
         raise HTTPException(status_code=404, detail="Research task not found")
 
     return task
+
+
+@router.get("/{task_uuid}/progress", response_model=ResearchTaskProgressRead)
+def get_research_task_progress(
+    task_uuid: UUID,
+    db: Session = Depends(get_db),
+) -> ResearchTaskProgressRead:
+    progress = service.get_research_progress(db, task_uuid)
+
+    if progress is None:
+        raise HTTPException(status_code=404, detail="Research task not found")
+
+    return progress
 
 
 @router.post("/{task_uuid}/runs", response_model=ResearchTaskRead)

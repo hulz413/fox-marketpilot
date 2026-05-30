@@ -2,7 +2,14 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { ArrowRight, ExternalLink, FileText, Play, RefreshCcw } from "lucide-react";
+import {
+  ArrowRight,
+  ExternalLink,
+  Eye,
+  FileText,
+  Play,
+  RefreshCcw,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -175,6 +182,12 @@ function TaskActions({
     return (
       <div className="flex justify-end gap-2">
         <LangSmithTraceLink task={task} />
+        <Button asChild variant="ghost" size="sm">
+          <Link href={`/research/tasks/${task.uuid}`}>
+            <Eye data-icon="inline-start" />
+            进度
+          </Link>
+        </Button>
         <Button asChild variant="outline" size="sm">
           <Link href={`/opportunities?task=${task.uuid}`}>
             商机
@@ -195,9 +208,11 @@ function TaskActions({
     return (
       <div className="flex justify-end gap-2">
         <LangSmithTraceLink task={task} />
-        <Button disabled variant="outline" size="sm">
-          <RefreshCcw data-icon="inline-start" />
-          运行中
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/research/tasks/${task.uuid}`}>
+            <RefreshCcw data-icon="inline-start" />
+            进度
+          </Link>
         </Button>
       </div>
     );
@@ -219,6 +234,12 @@ function TaskActions({
           <Play data-icon="inline-start" />
         )}
         {task.status === "failed" ? "重新运行" : "开始研究"}
+      </Button>
+      <Button asChild variant="ghost" size="sm">
+        <Link href={`/research/tasks/${task.uuid}`}>
+          <Eye data-icon="inline-start" />
+          进度
+        </Link>
       </Button>
     </div>
   );

@@ -89,9 +89,9 @@ export function NewResearchForm() {
 
       return startResearchRun(task.uuid);
     },
-    onSuccess: async () => {
+    onSuccess: async (task) => {
       await queryClient.invalidateQueries({ queryKey: ["research-tasks"] });
-      router.push("/research/tasks");
+      router.push(`/research/tasks/${task.uuid}`);
     },
   });
 

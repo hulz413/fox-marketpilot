@@ -12,7 +12,10 @@ from app.modules.agent_runs import service as agent_run_events_service
 from app.modules.research_tasks import repository
 from app.modules.research_tasks.models import ResearchTask
 from app.modules.research_tasks.schemas import (
+    ResearchProgressAction,
     ResearchTaskCreate,
+    ResearchTaskProgressRead,
+    ResearchTaskRead,
     ResearchTaskStage,
     ResearchTaskStatus,
 )
@@ -73,6 +76,83 @@ def get_research_task(db: Session, task_uuid: UUID) -> Optional[ResearchTask]:
 
 def get_research_task_by_id(db: Session, task_id: int) -> Optional[ResearchTask]:
     return repository.get_active_research_task_by_id(db, task_id)
+
+
+def _safe_event_error_summary(error_summary: Optional[str]) -> Optional[str]:
+    if not error_summary:
+        return None
+
+    first_line = error_summary.splitlines()[0].strip()
+
+    if not first_line:
+        return None
+
+    if "Traceback" in first_line or first_line.lstrip().startswith('File "'):
+        return "阶段执行失败，请查看任务失败原因。"
+
+    return first_line[:300]
+
+
+def _progress_actions(task: ResearchTask) -> list[ResearchProgressAction]:
+    actions = [ResearchProgressAction.BACK_TO_TASKS]
+
+    if task.status == ResearchTaskStatus.CREATED.value:
+        actions.append(ResearchProgressAction.START)
+
+    if task.status == ResearchTaskStatus.FAILED.value:
+        actions.append(ResearchProgressAction.RERUN)
+
+    if task.status == ResearchTaskStatus.COMPLETED.value:
+        actions.extend(
+            [
+                ResearchProgressAction.VIEW_OPPORTUNITIES,
+                ResearchProgressAction.VIEW_REPORT,
+            ]
+        )
+
+    if task.trace_url:
+        actions.append(ResearchProgressAction.OPEN_TRACE)
+
+    return actions
+
+
+def get_research_progress(
+    db: Session,
+    task_uuid: UUID,
+) -> Optional[ResearchTaskProgressRead]:
+    task = get_research_task(db, task_uuid)
+
+    if task is None:
+        return None
+
+    events = []
+    if task.run_id:
+        events = agent_run_events_service.list_run_events(db, task, task.run_id)
+
+    return ResearchTaskProgressRead(
+        task=ResearchTaskRead.model_validate(task),
+        run_id=task.run_id,
+        trace_id=task.trace_id,
+        trace_url=task.trace_url,
+        status=task.status,
+        current_stage=task.current_stage,
+        failure_reason=task.failure_reason,
+        events=[
+            {
+                "uuid": event.uuid,
+                "run_id": event.run_id,
+                "trace_id": event.trace_id,
+                "stage": event.stage,
+                "status": event.status,
+                "started_at": event.started_at,
+                "completed_at": event.completed_at,
+                "duration_ms": event.duration_ms,
+                "error_summary": _safe_event_error_summary(event.error_summary),
+            }
+            for event in events
+        ],
+        available_actions=_progress_actions(task),
+    )
 
 
 def save_research_task(db: Session, task: ResearchTask) -> ResearchTask:

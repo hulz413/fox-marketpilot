@@ -41,6 +41,40 @@ export type ResearchTask = {
   deleted_at: string | null;
 };
 
+export type AgentRunEventStatus = "running" | "completed" | "failed";
+
+export type AgentRunEvent = {
+  uuid: string;
+  run_id: string;
+  trace_id: string | null;
+  stage: string;
+  status: AgentRunEventStatus;
+  started_at: string;
+  completed_at: string | null;
+  duration_ms: number | null;
+  error_summary: string | null;
+};
+
+export type ResearchProgressAction =
+  | "start"
+  | "rerun"
+  | "view_opportunities"
+  | "view_report"
+  | "open_trace"
+  | "back_to_tasks";
+
+export type ResearchProgress = {
+  task: ResearchTask;
+  run_id: string | null;
+  trace_id: string | null;
+  trace_url: string | null;
+  status: ResearchTaskStatus;
+  current_stage: ResearchTaskStage;
+  failure_reason: string | null;
+  events: AgentRunEvent[];
+  available_actions: ResearchProgressAction[];
+};
+
 export type OpportunityRiskLevel = "low" | "medium" | "high";
 
 export type Opportunity = {
@@ -95,11 +129,19 @@ async function readErrorMessage(response: Response) {
   return "请求失败，请稍后重试。";
 }
 
+async function safeFetch(input: RequestInfo | URL, init?: RequestInit) {
+  try {
+    return await fetch(input, init);
+  } catch {
+    throw new Error("无法连接后端服务，请确认 API 服务和本地依赖已启动。");
+  }
+}
+
 export async function createResearchTask(
   input: CreateResearchTaskInput,
 ): Promise<ResearchTask> {
   const payload = createResearchTaskSchema.parse(input);
-  const response = await fetch(buildApiUrl("/api/v1/research-tasks"), {
+  const response = await safeFetch(buildApiUrl("/api/v1/research-tasks"), {
     cache: "no-store",
     method: "POST",
     headers: {
@@ -116,7 +158,7 @@ export async function createResearchTask(
 }
 
 export async function fetchResearchTasks(): Promise<ResearchTask[]> {
-  const response = await fetch(buildApiUrl("/api/v1/research-tasks"), {
+  const response = await safeFetch(buildApiUrl("/api/v1/research-tasks"), {
     cache: "no-store",
   });
 
@@ -128,9 +170,29 @@ export async function fetchResearchTasks(): Promise<ResearchTask[]> {
 }
 
 export async function fetchResearchTask(taskUuid: string): Promise<ResearchTask> {
-  const response = await fetch(buildApiUrl(`/api/v1/research-tasks/${taskUuid}`), {
-    cache: "no-store",
-  });
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-tasks/${taskUuid}`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchResearchProgress(
+  taskUuid: string,
+): Promise<ResearchProgress> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-tasks/${taskUuid}/progress`),
+    {
+      cache: "no-store",
+    },
+  );
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));
@@ -140,7 +202,7 @@ export async function fetchResearchTask(taskUuid: string): Promise<ResearchTask>
 }
 
 export async function startResearchRun(taskUuid: string): Promise<ResearchTask> {
-  const response = await fetch(
+  const response = await safeFetch(
     buildApiUrl(`/api/v1/research-tasks/${taskUuid}/runs`),
     {
       method: "POST",
@@ -158,7 +220,7 @@ export async function startResearchRun(taskUuid: string): Promise<ResearchTask> 
 export async function fetchTaskOpportunities(
   taskUuid: string,
 ): Promise<Opportunity[]> {
-  const response = await fetch(
+  const response = await safeFetch(
     buildApiUrl(`/api/v1/research-tasks/${taskUuid}/opportunities`),
     {
       cache: "no-store",
@@ -175,9 +237,12 @@ export async function fetchTaskOpportunities(
 export async function fetchOpportunity(
   opportunityUuid: string,
 ): Promise<Opportunity> {
-  const response = await fetch(buildApiUrl(`/api/v1/opportunities/${opportunityUuid}`), {
-    cache: "no-store",
-  });
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/opportunities/${opportunityUuid}`),
+    {
+      cache: "no-store",
+    },
+  );
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));

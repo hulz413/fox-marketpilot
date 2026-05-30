@@ -7,6 +7,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.modules.agent_runs.schemas import AgentRunEventRead
+
 
 class ResearchTaskStatus(str, Enum):
     CREATED = "created"
@@ -102,3 +104,24 @@ class ResearchTaskRead(BaseModel):
     deleted_at: Optional[datetime]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ResearchProgressAction(str, Enum):
+    START = "start"
+    RERUN = "rerun"
+    VIEW_OPPORTUNITIES = "view_opportunities"
+    VIEW_REPORT = "view_report"
+    OPEN_TRACE = "open_trace"
+    BACK_TO_TASKS = "back_to_tasks"
+
+
+class ResearchTaskProgressRead(BaseModel):
+    task: ResearchTaskRead
+    run_id: Optional[str]
+    trace_id: Optional[str]
+    trace_url: Optional[str]
+    status: ResearchTaskStatus
+    current_stage: ResearchTaskStage
+    failure_reason: Optional[str]
+    events: List[AgentRunEventRead]
+    available_actions: List[ResearchProgressAction]

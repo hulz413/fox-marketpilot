@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from typing import Any, Iterator
 from uuid import UUID, uuid4
 
@@ -112,6 +113,26 @@ def test_start_research_run_missing_task_returns_404(
     assert response.json() == {"detail": "Research task not found"}
 
 
+def test_research_progress_for_created_task_has_empty_events(
+    client: tuple[TestClient, sessionmaker[Session]],
+) -> None:
+    test_client, _ = client
+    created = create_task(test_client)
+
+    response = test_client.get(f"/api/v1/research-tasks/{created['uuid']}/progress")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["task"]["uuid"] == created["uuid"]
+    assert body["status"] == "created"
+    assert body["current_stage"] == "intake"
+    assert body["run_id"] is None
+    assert body["events"] == []
+    assert "start" in body["available_actions"]
+    assert "back_to_tasks" in body["available_actions"]
+    assert "id" not in body["task"]
+
+
 def test_execute_research_run_generates_opportunities(
     client: tuple[TestClient, sessionmaker[Session]],
     caplog: pytest.LogCaptureFixture,
@@ -182,6 +203,50 @@ def test_execute_research_run_generates_opportunities(
         and getattr(record, "run_id", None) == run_id
         for record in caplog.records
     )
+
+
+def test_research_progress_returns_completed_event_timeline(
+    client: tuple[TestClient, sessionmaker[Session]],
+) -> None:
+    test_client, session_factory = client
+    created = create_task(test_client)
+
+    with session_factory() as db:
+        task = research_task_service.start_research_run(
+            db,
+            UUID(created["uuid"]),
+            enqueue=False,
+        )
+        assert task is not None
+        assert task.run_id is not None
+        run_id = task.run_id
+        research_task_service.execute_research_run(
+            db,
+            UUID(created["uuid"]),
+            run_id,
+            generator=DeterministicDemoGenerator(),
+        )
+
+    response = test_client.get(f"/api/v1/research-tasks/{created['uuid']}/progress")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "completed"
+    assert body["run_id"] == run_id
+    assert body["trace_id"] is None
+    assert body["trace_url"] is None
+    assert [event["stage"] for event in body["events"]] == [
+        "opportunity_research",
+        "normalize_intake",
+        "generate_opportunities",
+        "validate_results",
+        "persist_results",
+    ]
+    assert all(event["run_id"] == run_id for event in body["events"])
+    assert all("id" not in event for event in body["events"])
+    assert all(event["uuid"] for event in body["events"])
+    assert "view_opportunities" in body["available_actions"]
+    assert "view_report" in body["available_actions"]
 
 
 def test_execute_research_run_persists_trace_context(
@@ -290,6 +355,57 @@ def test_execute_research_run_failure_sets_task_failed(
     assert all(event.error_summary for event in failed_events)
 
 
+def test_research_progress_returns_failed_safe_summary(
+    client: tuple[TestClient, sessionmaker[Session]],
+) -> None:
+    test_client, session_factory = client
+    created = create_task(test_client)
+
+    class InvalidGenerator:
+        def generate(self, context: dict[str, Any]) -> dict[str, Any]:
+            return {"opportunities": [{"rank": 1}]}
+
+    with session_factory() as db:
+        task = research_task_service.start_research_run(
+            db,
+            UUID(created["uuid"]),
+            enqueue=False,
+        )
+        assert task is not None
+        assert task.run_id is not None
+        run_id = task.run_id
+        research_task_service.execute_research_run(
+            db,
+            UUID(created["uuid"]),
+            run_id,
+            generator=InvalidGenerator(),
+        )
+        failed_event = db.execute(
+            select(AgentRunEvent).where(
+                AgentRunEvent.run_id == run_id,
+                AgentRunEvent.stage == "generate_opportunities",
+            )
+        ).scalar_one()
+        failed_event.error_summary = 'Traceback (most recent call last):\n  File "x.py"'
+        db.commit()
+
+    response = test_client.get(f"/api/v1/research-tasks/{created['uuid']}/progress")
+
+    assert response.status_code == 200
+    body = response.json()
+    failed_events = [
+        event
+        for event in body["events"]
+        if event["status"] == agent_run_events_service.STATUS_FAILED
+    ]
+    assert body["status"] == "failed"
+    assert "基础商机生成失败" in body["failure_reason"]
+    assert "rerun" in body["available_actions"]
+    assert failed_events
+    assert all("Traceback" not in event["error_summary"] for event in failed_events)
+    assert all("File " not in event["error_summary"] for event in failed_events)
+
+
 def test_rerun_replaces_old_opportunities(
     client: tuple[TestClient, sessionmaker[Session]],
 ) -> None:
@@ -367,3 +483,61 @@ def test_rerun_replaces_old_opportunities(
         "validate_results",
         "persist_results",
     }
+
+
+def test_research_progress_uses_current_run_and_filters_deleted_events(
+    client: tuple[TestClient, sessionmaker[Session]],
+) -> None:
+    test_client, session_factory = client
+    created = create_task(test_client)
+
+    with session_factory() as db:
+        first_task = research_task_service.start_research_run(
+            db,
+            UUID(created["uuid"]),
+            enqueue=False,
+        )
+        assert first_task is not None
+        assert first_task.run_id is not None
+        first_run_id = first_task.run_id
+        research_task_service.execute_research_run(
+            db,
+            UUID(created["uuid"]),
+            first_run_id,
+            generator=DeterministicDemoGenerator(),
+        )
+
+        second_task = research_task_service.start_research_run(
+            db,
+            UUID(created["uuid"]),
+            enqueue=False,
+        )
+        assert second_task is not None
+        assert second_task.run_id is not None
+        second_run_id = second_task.run_id
+        research_task_service.execute_research_run(
+            db,
+            UUID(created["uuid"]),
+            second_run_id,
+            generator=DeterministicDemoGenerator(),
+        )
+
+        deleted_event = db.execute(
+            select(AgentRunEvent).where(
+                AgentRunEvent.run_id == second_run_id,
+                AgentRunEvent.stage == "validate_results",
+            )
+        ).scalar_one()
+        deleted_event.deleted_at = datetime.now(timezone.utc)
+        db.commit()
+
+    response = test_client.get(f"/api/v1/research-tasks/{created['uuid']}/progress")
+
+    assert response.status_code == 200
+    body = response.json()
+    stages = [event["stage"] for event in body["events"]]
+
+    assert body["run_id"] == second_run_id
+    assert all(event["run_id"] == second_run_id for event in body["events"])
+    assert first_run_id not in [event["run_id"] for event in body["events"]]
+    assert "validate_results" not in stages
