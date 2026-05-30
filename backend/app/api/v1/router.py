@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.routes import (
+    competitor_references,
     demand_insights,
     health,
     opportunities,
@@ -16,3 +17,4 @@ api_router.include_router(opportunities.router, tags=["opportunities"])
 api_router.include_router(sources.router, tags=["sources"])
 api_router.include_router(demand_insights.router, tags=["demand_insights"])
 api_router.include_router(supply_candidates.router, tags=["supply_candidates"])
+api_router.include_router(competitor_references.router, tags=["competitor_references"])

@@ -63,9 +63,11 @@ test("result pages include task context and source panels", () => {
   assert.match(report, /TaskSourceInsights/);
   assert.match(report, /TaskDemandInsightSummary/);
   assert.match(report, /TaskSupplyCandidateSummary/);
+  assert.match(report, /TaskCompetitorReferenceSummary/);
   assert.match(detail, /OpportunitySourceInsights/);
   assert.match(detail, /OpportunityDemandInsightPanel/);
   assert.match(detail, /OpportunitySupplyCandidatePanel/);
+  assert.match(detail, /OpportunityCompetitorReferencePanel/);
   assert.match(shell, /TaskContextNavigation/);
 });
 
@@ -87,6 +89,17 @@ test("supply candidates keep cautious copy and non-blocking states", () => {
   assert.match(source, /待确认/);
   assert.match(source, /待验证/);
   assert.match(source, /货源候选暂不可用/);
+});
+
+test("competitor references keep cautious copy and non-blocking states", () => {
+  const source = readSource("src/features/research/competitor-references.tsx");
+
+  assert.match(source, /竞品参考/);
+  assert.match(source, /类似产品参考/);
+  assert.match(source, /公开线索/);
+  assert.match(source, /待确认/);
+  assert.match(source, /待验证/);
+  assert.match(source, /竞品参考暂不可用/);
 });
 
 test("interactive controls use pointer cursor while disabled controls do not", () => {

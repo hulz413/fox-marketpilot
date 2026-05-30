@@ -7,7 +7,11 @@ from uuid import UUID, uuid4
 from sqlalchemy.orm import Session
 
 from app.core.settings import get_settings
-from app.integrations.langsmith import TraceContext, langsmith_trace
+from app.integrations.langsmith import (
+    TraceContext,
+    langsmith_trace,
+    normalize_langsmith_trace_url,
+)
 from app.modules.agent_runs import service as agent_run_events_service
 from app.modules.research_tasks import repository
 from app.modules.research_tasks.models import ResearchTask
@@ -38,6 +42,7 @@ FAILURE_STAGE_LABELS = {
     ResearchTaskStage.COLLECT_RESEARCH_SOURCES.value: "来源收集",
     ResearchTaskStage.GENERATE_DEMAND_INSIGHTS.value: "需求洞察生成",
     ResearchTaskStage.GENERATE_SUPPLY_CANDIDATES.value: "货源候选生成",
+    ResearchTaskStage.GENERATE_COMPETITOR_REFERENCES.value: "竞品参考生成",
 }
 
 
@@ -70,15 +75,29 @@ def create_research_task(db: Session, payload: ResearchTaskCreate) -> ResearchTa
 
 
 def list_research_tasks(db: Session, limit: int = 50) -> list[ResearchTask]:
-    return repository.list_active_research_tasks(db, limit=limit)
+    return [
+        _normalize_task_trace_url(task)
+        for task in repository.list_active_research_tasks(db, limit=limit)
+    ]
 
 
 def get_research_task(db: Session, task_uuid: UUID) -> Optional[ResearchTask]:
-    return repository.get_active_research_task_by_uuid(db, task_uuid)
+    task = repository.get_active_research_task_by_uuid(db, task_uuid)
+    if task is None:
+        return None
+    return _normalize_task_trace_url(task)
 
 
 def get_research_task_by_id(db: Session, task_id: int) -> Optional[ResearchTask]:
-    return repository.get_active_research_task_by_id(db, task_id)
+    task = repository.get_active_research_task_by_id(db, task_id)
+    if task is None:
+        return None
+    return _normalize_task_trace_url(task)
+
+
+def _normalize_task_trace_url(task: ResearchTask) -> ResearchTask:
+    task.trace_url = normalize_langsmith_trace_url(task.trace_url)
+    return task
 
 
 def _safe_event_error_summary(error_summary: Optional[str]) -> Optional[str]:
@@ -255,6 +274,9 @@ def make_failure_reason(stage: str, exc: Exception) -> str:
 
     if stage == ResearchTaskStage.GENERATE_SUPPLY_CANDIDATES.value:
         return "基础商机已生成，但货源候选生成失败；结果已保留，可稍后重试。"
+
+    if stage == ResearchTaskStage.GENERATE_COMPETITOR_REFERENCES.value:
+        return "基础商机已生成，但竞品参考生成失败；结果已保留，可稍后重试。"
 
     if stage == ResearchTaskStage.VALIDATE_RESULTS.value:
         return "基础商机生成失败：结果校验失败，请稍后重试。"

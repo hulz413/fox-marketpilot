@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from html import unescape
+import re
 from typing import Any, Optional, Protocol
 from urllib.parse import urlparse
 
@@ -149,19 +151,27 @@ def source_to_read(
     research_task_uuid: Any,
     opportunity_uuid: Optional[Any],
 ) -> ResearchSourceRead:
+    title = clean_source_text(source.title) or "公开来源线索"
+    linked_claim = clean_source_text(source.linked_claim)
+    snippet = first_clean_source_text(source.snippet, source.summary, source.title)
+
     return ResearchSourceRead(
         uuid=source.uuid,
         research_task_uuid=research_task_uuid,
         opportunity_uuid=opportunity_uuid,
         source_type=source.source_type,
-        title=source.title,
+        title=title,
         url=source.url,
-        summary=source.summary,
-        snippet=source.snippet,
+        summary=clean_source_summary(
+            source.summary,
+            fallback_text=snippet or title,
+            linked_claim=linked_claim,
+        ),
+        snippet=snippet,
         publisher=source.publisher,
         score=source.score,
         query=source.query,
-        linked_claim=source.linked_claim,
+        linked_claim=linked_claim,
         support_level=source.support_level,
         collected_at=source.collected_at,
         created_at=source.created_at,
@@ -336,8 +346,14 @@ def build_source_create(
     extracted_content: Optional[str],
     normalized_url: str,
 ) -> ResearchSourceCreate:
-    evidence_text = clip_text(extracted_content or result.content or result.title, 220)
-    snippet = clip_text(result.content or extracted_content or result.title, 1200)
+    evidence_text = clip_text(
+        first_clean_source_text(extracted_content, result.content, result.title),
+        220,
+    )
+    snippet = clip_text(
+        first_clean_source_text(result.content, extracted_content, result.title),
+        1200,
+    )
     summary = (
         f"该公开来源提到“{evidence_text}”，可作为“{source_query.linked_claim}”"
         "的初步参考，仍需通过小批量验证继续确认。"
@@ -346,7 +362,7 @@ def build_source_create(
     return ResearchSourceCreate(
         opportunity_id=source_query.opportunity_id,
         source_type=source_query.source_type,
-        title=clip_text(result.title, 300) or "公开来源线索",
+        title=clip_text(clean_source_text(result.title), 300) or "公开来源线索",
         url=normalized_url,
         summary=clip_text(summary, 1200),
         snippet=snippet,
@@ -453,6 +469,51 @@ def normalize_url(url: str) -> str:
 def parse_publisher(url: str) -> Optional[str]:
     host = urlparse(url).netloc.strip()
     return host or None
+
+
+def clean_source_text(value: Optional[str]) -> str:
+    if not value:
+        return ""
+
+    cleaned = unescape(str(value))
+    cleaned = re.sub(r"!\[[^\]]*]\([^，。、“”\s)]*\)?", " ", cleaned)
+    cleaned = re.sub(r"\[([^\]]+)]\([^，。、“”\s)]*\)?", r"\1", cleaned)
+    cleaned = re.sub(r"(?:https?:)?//[^\s，。、“”]+", " ", cleaned)
+    cleaned = re.sub(r"(^|\s)#{1,6}\s*", r"\1", cleaned)
+    cleaned = re.sub(r"[*_`~]+", "", cleaned)
+    cleaned = re.sub(r"([“\"'])\s+", r"\1", cleaned)
+    cleaned = re.sub(r"\s+([”\"'])", r"\1", cleaned)
+    cleaned = re.sub(r"\s+([，。！？、；：])", r"\1", cleaned)
+    return normalize_space(cleaned).strip(" ，。.")
+
+
+def first_clean_source_text(*values: Optional[str]) -> str:
+    for value in values:
+        cleaned = clean_source_text(value)
+        if cleaned:
+            return cleaned
+    return ""
+
+
+def clean_source_summary(
+    value: Optional[str],
+    *,
+    fallback_text: str,
+    linked_claim: str,
+) -> str:
+    cleaned = clean_source_text(value)
+    if cleaned and not re.search(r"提到[“\"]\s*[”\"]", cleaned):
+        return cleaned
+
+    fallback = clip_text(clean_source_text(fallback_text), 220)
+    if not fallback:
+        return "该公开来源可作为初步参考，仍需通过小批量验证继续确认。"
+
+    claim = f"“{linked_claim}”" if linked_claim else "当前判断"
+    return (
+        f"该公开来源提到“{fallback}”，可作为{claim}的初步参考，"
+        "仍需通过小批量验证继续确认。"
+    )
 
 
 def clip_text(value: str, limit: int) -> str:

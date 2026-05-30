@@ -18,6 +18,7 @@ export type ResearchTaskStage =
   | "collect_research_sources"
   | "generate_demand_insights"
   | "generate_supply_candidates"
+  | "generate_competitor_references"
   | "completed"
   | "failed";
 
@@ -184,6 +185,41 @@ export type OpportunitySupplyCandidate = {
   recommendation_note: string;
   source_status: SupplyCandidateSourceStatus;
   sources: SupplyCandidateSourceSummary[];
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type CompetitorReferenceSourceStatus =
+  | "linked"
+  | "no_sources"
+  | "fallback";
+export type HomogenizationLevel = "low" | "medium" | "high";
+
+export type CompetitorReferenceSourceSummary = {
+  uuid: string;
+  source_type: ResearchSourceType;
+  title: string;
+  url: string;
+  summary: string;
+  support_level: SourceSupportLevel;
+  relevance_note: string;
+};
+
+export type OpportunityCompetitorReference = {
+  uuid: string;
+  research_task_uuid: string;
+  opportunity_uuid: string;
+  rank: number;
+  reference_name: string;
+  reference_market: string;
+  price_range: string;
+  common_selling_points: string[];
+  homogenization_level: HomogenizationLevel;
+  differentiation_angles: string[];
+  reference_note: string;
+  source_status: CompetitorReferenceSourceStatus;
+  sources: CompetitorReferenceSourceSummary[];
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -461,6 +497,40 @@ export async function fetchOpportunitySupplyCandidates(
 ): Promise<OpportunitySupplyCandidate[]> {
   const response = await safeFetch(
     buildApiUrl(`/api/v1/opportunities/${opportunityUuid}/supply-candidates`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchTaskCompetitorReferences(
+  taskUuid: string,
+): Promise<OpportunityCompetitorReference[]> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-tasks/${taskUuid}/competitor-references`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchOpportunityCompetitorReferences(
+  opportunityUuid: string,
+): Promise<OpportunityCompetitorReference[]> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/opportunities/${opportunityUuid}/competitor-references`),
     {
       cache: "no-store",
     },

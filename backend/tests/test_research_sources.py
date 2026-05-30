@@ -213,6 +213,53 @@ def test_source_collector_uses_search_extract_and_deduplicates_urls(
     assert all("已证明" not in source.summary for source in sources)
 
 
+def test_source_api_sanitizes_markdown_image_and_link_text(
+    client: tuple[TestClient, sessionmaker[Session]],
+) -> None:
+    test_client, session_factory = client
+    created, _ = execute_task(test_client, session_factory)
+
+    with session_factory() as db:
+        sources = db.execute(select(ResearchSource).limit(2)).scalars().all()
+        assert len(sources) == 2
+        source = sources[0]
+        fallback_source = sources[1]
+
+        source.summary = (
+            "该公开来源提到“![图](https://gw.alicdn.com/item.png) "
+            "## [#免钉磁吸洞洞板](https://example.com/product-truncated...”，"
+            "可作为初步参考。"
+        )
+        source.snippet = "![封面](//img.alicdn.com/image... [商品详情](https://example.com)"
+        source.linked_claim = "来源支持 [桌面收纳](https://example.com/claim) 需求信号"
+        source_uuid = str(source.uuid)
+
+        fallback_source.summary = (
+            "该公开来源提到“![](//img.alicdn.com/image...”，可作为初步参考。"
+        )
+        fallback_source.snippet = "桌面洞洞板样品评论提到收纳效果"
+        fallback_source.linked_claim = "桌面收纳方向可能存在需求信号"
+        fallback_source_uuid = str(fallback_source.uuid)
+        db.commit()
+
+    response = test_client.get(f"/api/v1/research-tasks/{created['uuid']}/sources")
+
+    assert response.status_code == 200
+    body = response.json()
+    cleaned = next(source for source in body if source["uuid"] == source_uuid)
+    fallback_cleaned = next(
+        source for source in body if source["uuid"] == fallback_source_uuid
+    )
+    assert "![" not in cleaned["summary"]
+    assert "](" not in cleaned["summary"]
+    assert "gw.alicdn.com" not in cleaned["summary"]
+    assert "免钉磁吸洞洞板" in cleaned["summary"]
+    assert cleaned["snippet"] == "商品详情"
+    assert cleaned["linked_claim"] == "来源支持 桌面收纳 需求信号"
+    assert "提到“ ”" not in fallback_cleaned["summary"]
+    assert "桌面洞洞板样品评论提到收纳效果" in fallback_cleaned["summary"]
+
+
 def test_source_collection_failure_keeps_research_completed(
     client: tuple[TestClient, sessionmaker[Session]],
     monkeypatch: pytest.MonkeyPatch,

@@ -110,49 +110,57 @@ export function OpportunityList() {
     <div className="grid gap-5">
       <TaskContextNavigation active="opportunities" taskUuid={taskUuid} />
       <Card className="overflow-hidden rounded-lg py-0 shadow-none">
-      <CardHeader className="flex flex-row items-center justify-between gap-4 border-b px-5 py-4">
-        <div>
-          <CardTitle>基础商机推荐</CardTitle>
-          <CardDescription>
-            基于任务输入生成的待验证草案，不包含来源或竞品核验。
-          </CardDescription>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary">{opportunities.length} 个推荐</Badge>
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/reports/${taskUuid}`}>
-              <FileText data-icon="inline-start" />
-              基础报告
-            </Link>
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="grid gap-3 p-4 md:hidden">
-          {opportunities.map((item) => (
-            <OpportunityCard key={item.uuid} opportunity={item} />
-          ))}
-        </div>
-        <div className="hidden md:block">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="h-14 px-5">排序</TableHead>
-                <TableHead>商机名称</TableHead>
-                <TableHead>验证动作</TableHead>
-                <TableHead>价格 / 风险</TableHead>
-                <TableHead>推荐优先级</TableHead>
-                <TableHead className="pr-5 text-right">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {opportunities.map((item) => (
-                <OpportunityRow key={item.uuid} opportunity={item} />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
+        <CardHeader className="flex flex-row items-center justify-between gap-4 border-b px-5 py-4">
+          <div className="min-w-0">
+            <CardTitle>基础商机推荐</CardTitle>
+            <CardDescription>
+              基于任务输入生成的待验证草案，不包含来源或竞品核验。
+            </CardDescription>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Badge variant="secondary">{opportunities.length} 个推荐</Badge>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/reports/${taskUuid}`}>
+                <FileText data-icon="inline-start" />
+                基础报告
+              </Link>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="grid gap-3 p-4 md:hidden">
+            {opportunities.map((item) => (
+              <OpportunityCard key={item.uuid} opportunity={item} />
+            ))}
+          </div>
+          <div className="hidden md:block">
+            <Table className="min-w-[980px] table-fixed">
+              <colgroup>
+                <col className="w-[72px]" />
+                <col className="w-[230px]" />
+                <col />
+                <col className="w-[150px]" />
+                <col className="w-[150px]" />
+                <col className="w-[120px]" />
+              </colgroup>
+              <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="h-14 px-5">排序</TableHead>
+                  <TableHead>商机名称</TableHead>
+                  <TableHead>验证动作</TableHead>
+                  <TableHead>价格 / 风险</TableHead>
+                  <TableHead>推荐优先级</TableHead>
+                  <TableHead className="pr-5 text-right">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {opportunities.map((item) => (
+                  <OpportunityRow key={item.uuid} opportunity={item} />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
       </Card>
     </div>
   );
@@ -160,31 +168,31 @@ export function OpportunityList() {
 
 function OpportunityRow({ opportunity }: { opportunity: Opportunity }) {
   return (
-    <TableRow className="h-16">
-      <TableCell className="px-5">
+    <TableRow>
+      <TableCell className="px-5 py-5 align-top">
         <Badge variant="outline">{String(opportunity.rank).padStart(2, "0")}</Badge>
       </TableCell>
-      <TableCell>
-        <p className="font-medium">{opportunity.name}</p>
-        <p className="mt-1 text-xs text-muted-foreground">
+      <TableCell className="whitespace-normal py-5 align-top">
+        <p className="break-words font-medium">{opportunity.name}</p>
+        <p className="mt-1 break-words text-xs leading-5 text-muted-foreground">
           {opportunity.product_direction}
         </p>
       </TableCell>
-      <TableCell className="max-w-[280px] text-sm leading-6 text-muted-foreground">
+      <TableCell className="whitespace-normal py-5 align-top text-sm leading-6 text-muted-foreground">
         {opportunity.next_step_summary}
       </TableCell>
-      <TableCell>
-        <p>{opportunity.price_band}</p>
+      <TableCell className="whitespace-normal py-5 align-top">
+        <p className="font-medium leading-5">{opportunity.price_band}</p>
         <p className="mt-1 text-xs text-muted-foreground">
           风险 {riskLabels[opportunity.risk_level]}
         </p>
       </TableCell>
-      <TableCell>
+      <TableCell className="whitespace-normal py-5 align-top">
         <Badge className="rounded-full bg-primary/10 text-primary">
           {opportunity.priority_label}
         </Badge>
       </TableCell>
-      <TableCell className="pr-5 text-right">
+      <TableCell className="py-5 pr-5 text-right align-top">
         <Button asChild variant="outline" size="sm">
           <Link href={`/opportunities/${opportunity.uuid}`}>
             详情

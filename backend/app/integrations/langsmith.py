@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 import logging
 from typing import Any, Iterator, Optional
+from urllib.parse import urlsplit, urlunsplit
 
 from app.core.settings import get_settings
 
@@ -32,6 +33,55 @@ def is_langsmith_tracing_enabled() -> bool:
     return settings.langsmith_tracing and bool(settings.langsmith_api_key)
 
 
+def _langsmith_app_host_from_endpoint(endpoint: str) -> Optional[str]:
+    if not endpoint:
+        return None
+
+    hostname = urlsplit(endpoint).hostname
+
+    if hostname == "api.smith.langchain.com":
+        return "smith.langchain.com"
+
+    suffix = ".api.smith.langchain.com"
+    if hostname and hostname.endswith(suffix):
+        region = hostname.removesuffix(suffix)
+        if region:
+            return f"{region}.smith.langchain.com"
+
+    return None
+
+
+def normalize_langsmith_trace_url(trace_url: Optional[str]) -> Optional[str]:
+    if not trace_url:
+        return trace_url
+
+    app_host = _langsmith_app_host_from_endpoint(get_settings().langsmith_endpoint)
+    if not app_host:
+        return trace_url
+
+    parsed = urlsplit(trace_url)
+    if not parsed.scheme or not parsed.netloc:
+        return trace_url
+
+    current_host = parsed.hostname or ""
+    if not current_host.endswith("smith.langchain.com"):
+        return trace_url
+
+    netloc = app_host
+    if parsed.port:
+        netloc = f"{netloc}:{parsed.port}"
+
+    return urlunsplit(
+        (
+            parsed.scheme,
+            netloc,
+            parsed.path,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
+
+
 def get_current_trace_context() -> Optional[TraceContext]:
     try:
         from langsmith.run_helpers import get_current_run_tree
@@ -54,7 +104,7 @@ def get_current_trace_context() -> Optional[TraceContext]:
 
     return TraceContext(
         trace_id=str(trace_id) if trace_id else None,
-        trace_url=trace_url,
+        trace_url=normalize_langsmith_trace_url(trace_url),
     )
 
 
@@ -97,7 +147,7 @@ def langsmith_trace(
             logger.warning("Failed to build LangSmith trace URL", exc_info=True)
         yield TraceContext(
             trace_id=str(trace_id) if trace_id else None,
-            trace_url=trace_url,
+            trace_url=normalize_langsmith_trace_url(trace_url),
         )
     except BaseException as exc:
         try:

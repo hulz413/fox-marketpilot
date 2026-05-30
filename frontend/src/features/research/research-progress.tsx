@@ -56,6 +56,7 @@ const stageLabels: Record<ResearchTaskStage, string> = {
   collect_research_sources: "收集公开来源线索",
   generate_demand_insights: "生成需求洞察",
   generate_supply_candidates: "生成货源候选",
+  generate_competitor_references: "生成竞品参考",
   completed: "基础推荐已生成",
   failed: "生成失败",
 };
@@ -104,6 +105,11 @@ const stageTimeline: Array<{
     key: "generate_supply_candidates",
     label: "生成货源候选",
     description: "整理候选找货方向、初步参考信息和供应商待确认问题。",
+  },
+  {
+    key: "generate_competitor_references",
+    label: "生成竞品参考",
+    description: "整理类似产品参考、常见售价和差异化切入点。",
   },
   {
     key: "completed",
@@ -350,7 +356,7 @@ function getProgressMessage(
   completedStageCount: number,
 ) {
   if (progress.status === "completed") {
-    return "基础商机推荐已经生成，可以继续查看商机列表、详情、货源候选和基础报告。";
+    return "基础商机推荐已经生成，可以继续查看商机列表、详情、货源候选、竞品参考和基础报告。";
   }
 
   if (progress.status === "failed") {

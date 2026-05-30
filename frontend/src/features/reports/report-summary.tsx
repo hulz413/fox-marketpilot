@@ -27,6 +27,7 @@ import {
   type OpportunityRiskLevel,
 } from "@/features/research/api";
 import { TaskContextNavigation } from "@/features/product-skeleton/components";
+import { TaskCompetitorReferenceSummary } from "@/features/research/competitor-references";
 import { TaskDemandInsightSummary } from "@/features/research/demand-insights";
 import { TaskSourceInsights } from "@/features/research/source-insights";
 import { TaskSupplyCandidateSummary } from "@/features/research/supply-candidates";
@@ -143,6 +144,11 @@ function ReportContent({
       <TaskDemandInsightSummary opportunities={opportunities} taskUuid={taskUuid} />
 
       <TaskSupplyCandidateSummary opportunities={opportunities} taskUuid={taskUuid} />
+
+      <TaskCompetitorReferenceSummary
+        opportunities={opportunities}
+        taskUuid={taskUuid}
+      />
 
       <TaskSourceInsights taskUuid={taskUuid} />
 

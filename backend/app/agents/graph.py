@@ -14,6 +14,7 @@ from app.core.settings import get_settings
 from app.integrations.langsmith import is_langsmith_tracing_enabled, langsmith_trace
 from app.integrations.llm import create_llm_client
 from app.modules.agent_runs import service as agent_run_events_service
+from app.modules.competitor_references import service as competitor_references_service
 from app.modules.demand_insights import service as demand_insights_service
 from app.modules.opportunities import service as opportunities_service
 from app.modules.opportunities.schemas import (
@@ -510,6 +511,70 @@ def generate_supply_candidates(state: ResearchGraphState) -> dict[str, Any]:
         }
 
 
+def generate_competitor_references(state: ResearchGraphState) -> dict[str, Any]:
+    db = state["db"]
+    task = state["task"]
+    run_id = state.get("run_id")
+
+    try:
+        result = competitor_references_service.collect_competitor_references(db, task)
+        task.status = ResearchTaskStatus.COMPLETED.value
+        task.current_stage = ResearchTaskStage.COMPLETED.value
+        task.failure_reason = None
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+
+        metadata = {
+            "competitor_reference_status": result.status,
+            "saved_competitor_reference_count": result.saved_count,
+            "source_link_count": result.source_link_count,
+        }
+        logger.info(
+            "Generated competitor references",
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                **metadata,
+            },
+        )
+
+        return {
+            "task": task,
+            "stage_event": {
+                "status": "completed",
+                "metadata": metadata,
+            },
+        }
+    except Exception as exc:  # pragma: no cover - defensive non-blocking fallback
+        db.rollback()
+        task.status = ResearchTaskStatus.COMPLETED.value
+        task.current_stage = ResearchTaskStage.COMPLETED.value
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+        logger.warning(
+            "Competitor reference generation failed after opportunities were persisted",
+            exc_info=True,
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                "error_type": type(exc).__name__,
+            },
+        )
+        return {
+            "task": task,
+            "stage_event": {
+                "status": "failed",
+                "error_summary": "竞品参考生成失败，基础商机结果已保留。",
+                "metadata": {
+                    "competitor_reference_status": "failed",
+                    "error_type": type(exc).__name__,
+                },
+            },
+        }
+
+
 def update_task_stage(
     db: Session,
     task: ResearchTask,
@@ -649,6 +714,13 @@ def build_research_graph():
             generate_supply_candidates,
         ),
     )
+    graph.add_node(
+        "generate_competitor_references",
+        observe_node(
+            ResearchTaskStage.GENERATE_COMPETITOR_REFERENCES,
+            generate_competitor_references,
+        ),
+    )
     graph.add_edge(START, "normalize_intake")
     graph.add_edge("normalize_intake", "generate_opportunities")
     graph.add_edge("generate_opportunities", "validate_results")
@@ -656,6 +728,7 @@ def build_research_graph():
     graph.add_edge("persist_results", "collect_research_sources")
     graph.add_edge("collect_research_sources", "generate_demand_insights")
     graph.add_edge("generate_demand_insights", "generate_supply_candidates")
-    graph.add_edge("generate_supply_candidates", END)
+    graph.add_edge("generate_supply_candidates", "generate_competitor_references")
+    graph.add_edge("generate_competitor_references", END)
 
     return graph.compile()

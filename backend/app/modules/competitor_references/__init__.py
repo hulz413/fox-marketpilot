@@ -1,0 +1,1 @@
+"""Competitor reference domain module."""
