@@ -20,6 +20,31 @@ test("task list keeps state-driven primary actions and secondary menu", () => {
   assert.match(source, /更多操作/);
 });
 
+test("demo research samples are actionable real task entries", () => {
+  const data = readSource("src/features/product-skeleton/data.ts");
+  const samples = readSource("src/features/research/demo-research-samples.tsx");
+  const emptyState = readSource("src/features/product-skeleton/components.tsx");
+
+  assert.match(data, /sampleResearchRequests/);
+  assert.match(data, /target_channels/);
+  assert.match(data, /supply_preferences/);
+  assert.match(samples, /createAndStartResearchTask/);
+  assert.match(samples, /启动示例/);
+  assert.match(samples, /正在启动/);
+  assert.match(samples, /打开已创建任务/);
+  assert.match(emptyState, /DemoResearchSamples/);
+});
+
+test("new research form supports sample fill and direct launch", () => {
+  const source = readSource("src/features/research/new-research-form.tsx");
+
+  assert.match(source, /sampleToFormValues/);
+  assert.match(source, /fillWithSample/);
+  assert.match(source, /DemoResearchSamples onFill/);
+  assert.match(source, /createAndStartResearchTask/);
+  assert.match(source, /直接启动一个完整演示任务/);
+});
+
 test("source transparency keeps cautious copy and non-blocking states", () => {
   const source = readSource("src/features/research/source-insights.tsx");
 

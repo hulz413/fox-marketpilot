@@ -3,7 +3,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -25,9 +24,16 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { samplePrompts } from "@/features/product-skeleton/data";
+import {
+  sampleResearchRequests,
+  type SampleResearchRequest,
+} from "@/features/product-skeleton/data";
 
-import { createResearchTask, startResearchRun } from "./api";
+import {
+  createAndStartResearchTask,
+  ResearchRunStartError,
+} from "./api";
+import { DemoResearchSamples } from "./demo-research-samples";
 
 const formSchema = z.object({
   brief: z.string().trim().min(1, "请填写自然语言需求。").max(2000),
@@ -42,18 +48,6 @@ const formSchema = z.object({
 });
 
 type NewResearchFormValues = z.infer<typeof formSchema>;
-
-const defaultValues: NewResearchFormValues = {
-  brief: "预算 5000 元以内，从 1688 找适合小红书种草的产品，不做食品和电子产品。",
-  budget: "5000 元以内",
-  targetChannels: "小红书种草",
-  preferredCategories: "轻库存、内容种草",
-  excludedCategories: "食品、电子产品",
-  targetAudience: "通勤白领、租房办公人群",
-  expectedProfit: "毛利 30%+",
-  supplyPreferences: "1688、公开供给市场",
-  constraints: "首批验证预算小，不囤货。",
-};
 
 function splitList(value?: string) {
   if (!value) {
@@ -72,6 +66,26 @@ function optionalText(value?: string) {
   return trimmed ? trimmed : undefined;
 }
 
+function joinList(values: string[]) {
+  return values.join("、");
+}
+
+function sampleToFormValues(sample: SampleResearchRequest): NewResearchFormValues {
+  return {
+    brief: sample.payload.brief,
+    budget: sample.payload.budget,
+    targetChannels: joinList(sample.payload.target_channels),
+    preferredCategories: joinList(sample.payload.preferred_categories),
+    excludedCategories: joinList(sample.payload.excluded_categories),
+    targetAudience: sample.payload.target_audience,
+    expectedProfit: sample.payload.expected_profit,
+    supplyPreferences: joinList(sample.payload.supply_preferences),
+    constraints: sample.payload.constraints,
+  };
+}
+
+const defaultValues = sampleToFormValues(sampleResearchRequests[0]);
+
 export function NewResearchForm() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -84,34 +98,30 @@ export function NewResearchForm() {
   } = useForm<NewResearchFormValues>({ defaultValues });
 
   const createTaskMutation = useMutation({
-    mutationFn: async (input: Parameters<typeof createResearchTask>[0]) => {
-      const task = await createResearchTask(input);
-
-      return startResearchRun(task.uuid);
-    },
+    mutationFn: createAndStartResearchTask,
     onSuccess: async (task) => {
       await queryClient.invalidateQueries({ queryKey: ["research-tasks"] });
       router.push(`/research/tasks/${task.uuid}`);
     },
   });
 
-  const sampleButtons = useMemo(
-    () =>
-      samplePrompts.map((prompt) => (
-        <Button
-          key={prompt}
-          type="button"
-          variant="outline"
-          className="h-auto justify-start whitespace-normal px-3 py-2 text-left"
-          onClick={() => {
-            setValue("brief", prompt, { shouldDirty: true, shouldValidate: true });
-          }}
-        >
-          {prompt}
-        </Button>
-      )),
-    [setValue],
-  );
+  function fillWithSample(sample: SampleResearchRequest) {
+    const values = sampleToFormValues(sample);
+
+    setValue("brief", values.brief, { shouldDirty: true, shouldValidate: true });
+    setValue("budget", values.budget, { shouldDirty: true });
+    setValue("targetChannels", values.targetChannels, { shouldDirty: true });
+    setValue("preferredCategories", values.preferredCategories, {
+      shouldDirty: true,
+    });
+    setValue("excludedCategories", values.excludedCategories, {
+      shouldDirty: true,
+    });
+    setValue("targetAudience", values.targetAudience, { shouldDirty: true });
+    setValue("expectedProfit", values.expectedProfit, { shouldDirty: true });
+    setValue("supplyPreferences", values.supplyPreferences, { shouldDirty: true });
+    setValue("constraints", values.constraints, { shouldDirty: true });
+  }
 
   async function onSubmit(values: NewResearchFormValues) {
     const parsed = formSchema.safeParse(values);
@@ -141,6 +151,10 @@ export function NewResearchForm() {
         constraints: optionalText(parsed.data.constraints),
       });
     } catch (error) {
+      if (error instanceof ResearchRunStartError) {
+        await queryClient.invalidateQueries({ queryKey: ["research-tasks"] });
+      }
+
       setError("root.server", {
         message: error instanceof Error ? error.message : "创建任务失败，请稍后重试。",
       });
@@ -246,9 +260,13 @@ export function NewResearchForm() {
       <Card className="rounded-lg">
         <CardHeader>
           <CardTitle>中文示例需求</CardTitle>
-          <CardDescription>点击示例可以填入自然语言需求。</CardDescription>
+          <CardDescription>
+            可以先填入表单微调，也可以直接启动一个完整演示任务。
+          </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3">{sampleButtons}</CardContent>
+        <CardContent>
+          <DemoResearchSamples onFill={fillWithSample} />
+        </CardContent>
       </Card>
     </form>
   );

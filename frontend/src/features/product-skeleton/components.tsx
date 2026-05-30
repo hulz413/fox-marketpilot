@@ -19,6 +19,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DemoResearchSamples } from "@/features/research/demo-research-samples";
 import {
   Card,
   CardContent,
@@ -40,7 +41,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-import { productNavItems, samplePrompts, type NavKey } from "./data";
+import { productNavItems, type NavKey } from "./data";
 
 type ProductShellProps = {
   active: NavKey;
@@ -360,7 +361,7 @@ export function EmptyResearchState() {
       <CardHeader>
         <CardTitle>还没有真实研究任务</CardTitle>
         <CardDescription>
-          首次演示可以从下面的中文示例开始；真实任务接入后会显示你的研究记录。
+          首次演示可以直接启动下面的中文示例；创建后会进入真实任务进度页。
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -370,13 +371,7 @@ export function EmptyResearchState() {
             <ArrowRight data-icon="inline-end" />
           </Link>
         </Button>
-        <div className="grid gap-3">
-          {samplePrompts.map((prompt) => (
-            <div key={prompt} className="rounded-md border bg-background p-3 text-sm">
-              {prompt}
-            </div>
-          ))}
-        </div>
+        <DemoResearchSamples />
       </CardContent>
     </Card>
   );

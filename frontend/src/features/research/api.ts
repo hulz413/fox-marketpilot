@@ -171,6 +171,16 @@ export const createResearchTaskSchema = z.object({
 
 export type CreateResearchTaskInput = z.infer<typeof createResearchTaskSchema>;
 
+export class ResearchRunStartError extends Error {
+  task: ResearchTask;
+
+  constructor(message: string, task: ResearchTask) {
+    super(message);
+    this.name = "ResearchRunStartError";
+    this.task = task;
+  }
+}
+
 async function readErrorMessage(response: Response) {
   try {
     const body = await response.json();
@@ -215,6 +225,23 @@ export async function createResearchTask(
   }
 
   return response.json();
+}
+
+export async function createAndStartResearchTask(
+  input: CreateResearchTaskInput,
+): Promise<ResearchTask> {
+  const task = await createResearchTask(input);
+
+  try {
+    return await startResearchRun(task.uuid);
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? `任务已创建，但启动研究失败：${error.message}`
+        : "任务已创建，但启动研究失败，请稍后从任务列表继续启动。";
+
+    throw new ResearchRunStartError(message, task);
+  }
 }
 
 export async function fetchResearchTasks(): Promise<ResearchTask[]> {
