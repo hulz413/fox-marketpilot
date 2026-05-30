@@ -27,6 +27,7 @@ import {
   type Opportunity,
   type OpportunityRiskLevel,
 } from "@/features/research/api";
+import { TaskContextNavigation } from "@/features/product-skeleton/components";
 
 const riskLabels: Record<OpportunityRiskLevel, string> = {
   low: "低",
@@ -106,7 +107,9 @@ export function OpportunityList() {
   }
 
   return (
-    <Card className="overflow-hidden rounded-lg py-0 shadow-none">
+    <div className="grid gap-5">
+      <TaskContextNavigation active="opportunities" taskUuid={taskUuid} />
+      <Card className="overflow-hidden rounded-lg py-0 shadow-none">
       <CardHeader className="flex flex-row items-center justify-between gap-4 border-b px-5 py-4">
         <div>
           <CardTitle>基础商机推荐</CardTitle>
@@ -125,15 +128,19 @@ export function OpportunityList() {
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <Table className="min-w-[860px]">
+        <div className="grid gap-3 p-4 md:hidden">
+          {opportunities.map((item) => (
+            <OpportunityCard key={item.uuid} opportunity={item} />
+          ))}
+        </div>
+        <div className="hidden md:block">
+          <Table>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="h-14 px-5">排序</TableHead>
                 <TableHead>商机名称</TableHead>
-                <TableHead>目标人群</TableHead>
-                <TableHead>价格带</TableHead>
-                <TableHead>风险等级</TableHead>
+                <TableHead>验证动作</TableHead>
+                <TableHead>价格 / 风险</TableHead>
                 <TableHead>推荐优先级</TableHead>
                 <TableHead className="pr-5 text-right">操作</TableHead>
               </TableRow>
@@ -146,7 +153,8 @@ export function OpportunityList() {
           </Table>
         </div>
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }
 
@@ -162,9 +170,15 @@ function OpportunityRow({ opportunity }: { opportunity: Opportunity }) {
           {opportunity.product_direction}
         </p>
       </TableCell>
-      <TableCell>{opportunity.target_audience}</TableCell>
-      <TableCell>{opportunity.price_band}</TableCell>
-      <TableCell>{riskLabels[opportunity.risk_level]}</TableCell>
+      <TableCell className="max-w-[280px] text-sm leading-6 text-muted-foreground">
+        {opportunity.next_step_summary}
+      </TableCell>
+      <TableCell>
+        <p>{opportunity.price_band}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          风险 {riskLabels[opportunity.risk_level]}
+        </p>
+      </TableCell>
       <TableCell>
         <Badge className="rounded-full bg-primary/10 text-primary">
           {opportunity.priority_label}
@@ -179,6 +193,48 @@ function OpportunityRow({ opportunity }: { opportunity: Opportunity }) {
         </Button>
       </TableCell>
     </TableRow>
+  );
+}
+
+function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
+  return (
+    <article className="rounded-lg border bg-background p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">{String(opportunity.rank).padStart(2, "0")}</Badge>
+            <Badge className="rounded-full bg-primary/10 text-primary">
+              {opportunity.priority_label}
+            </Badge>
+            <Badge variant="secondary">风险 {riskLabels[opportunity.risk_level]}</Badge>
+          </div>
+          <h2 className="mt-3 font-semibold">{opportunity.name}</h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            {opportunity.product_direction}
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/opportunities/${opportunity.uuid}`}>
+            详情
+            <ArrowRight data-icon="inline-end" />
+          </Link>
+        </Button>
+      </div>
+      <div className="mt-4 grid gap-3 text-sm">
+        <InfoLine label="目标人群" value={opportunity.target_audience} />
+        <InfoLine label="价格带" value={opportunity.price_band} />
+        <InfoLine label="验证动作" value={opportunity.next_step_summary} />
+      </div>
+    </article>
+  );
+}
+
+function InfoLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 leading-6">{value}</p>
+    </div>
   );
 }
 

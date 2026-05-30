@@ -2,15 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import {
-  ArrowRight,
-  ExternalLink,
-  Eye,
-  FileText,
-  MoreHorizontal,
-  Play,
-  RefreshCcw,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowRight, FileText, Play, RefreshCcw, TimerReset } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,15 +22,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   EmptyResearchState,
   StatusBadge,
@@ -67,6 +51,7 @@ const stageLabels: Record<ResearchTask["current_stage"], string> = {
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -74,22 +59,19 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-export function ResearchTaskList() {
+export function ResearchHistoryList() {
+  const router = useRouter();
   const queryClient = useQueryClient();
-  const {
-    data: tasks,
-    error,
-    isLoading,
-    refetch,
-  } = useQuery({
+  const { data: tasks, error, isLoading, refetch } = useQuery({
     queryKey: ["research-tasks"],
     queryFn: fetchResearchTasks,
     refetchInterval: 5000,
   });
   const startRunMutation = useMutation({
     mutationFn: startResearchRun,
-    onSuccess: async () => {
+    onSuccess: async (task) => {
       await queryClient.invalidateQueries({ queryKey: ["research-tasks"] });
+      router.push(`/research/tasks/${task.uuid}`);
     },
   });
 
@@ -97,7 +79,7 @@ export function ResearchTaskList() {
     return (
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle>研究任务列表</CardTitle>
+          <CardTitle>历史研究列表</CardTitle>
           <CardDescription>正在加载真实研究任务。</CardDescription>
         </CardHeader>
         <CardContent>
@@ -111,9 +93,9 @@ export function ResearchTaskList() {
     return (
       <Card className="rounded-lg border-destructive/30">
         <CardHeader>
-          <CardTitle>任务加载失败</CardTitle>
+          <CardTitle>历史加载失败</CardTitle>
           <CardDescription>
-            {error instanceof Error ? error.message : "无法读取研究任务。"}
+            {error instanceof Error ? error.message : "无法读取研究历史。"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -134,15 +116,15 @@ export function ResearchTaskList() {
     <Card className="overflow-hidden rounded-lg py-0 shadow-none">
       <CardHeader className="flex flex-row items-center justify-between gap-4 border-b px-5 py-4">
         <div>
-          <CardTitle>研究任务列表</CardTitle>
-          <CardDescription>展示真实创建的任务和当前状态。</CardDescription>
+          <CardTitle>历史研究列表</CardTitle>
+          <CardDescription>真实任务的继续入口，按创建时间倒序展示。</CardDescription>
         </div>
-        <Badge variant="secondary">{tasks.length} 个任务</Badge>
+        <Badge variant="secondary">{tasks.length} 条记录</Badge>
       </CardHeader>
       <CardContent className="p-0">
         <div className="grid gap-3 p-4 md:hidden">
           {tasks.map((task) => (
-            <TaskCard
+            <HistoryCard
               key={task.uuid}
               task={task}
               isStarting={startRunMutation.isPending}
@@ -155,29 +137,34 @@ export function ResearchTaskList() {
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
                 <TableHead className="h-14 px-5">任务</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>阶段摘要</TableHead>
                 <TableHead>创建时间</TableHead>
-                <TableHead className="pr-5 text-right">下一步</TableHead>
+                <TableHead>状态</TableHead>
+                <TableHead>当前阶段</TableHead>
+                <TableHead className="pr-5 text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {tasks.map((task) => (
                 <TableRow key={task.uuid} className="h-16">
                   <TableCell className="px-5">
-                    <TaskTitle task={task} />
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={statusLabels[task.status]} />
-                  </TableCell>
-                  <TableCell className="max-w-[220px] text-sm text-muted-foreground">
-                    {stageLabels[task.current_stage]}
+                    <p className="max-w-[420px] truncate font-medium">
+                      {task.title}
+                    </p>
+                    <p className="mt-1 max-w-[520px] truncate text-xs text-muted-foreground">
+                      {task.brief === task.title ? task.budget : task.brief}
+                    </p>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {formatDate(task.created_at)}
                   </TableCell>
+                  <TableCell>
+                    <StatusBadge status={statusLabels[task.status]} />
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {stageLabels[task.current_stage]}
+                  </TableCell>
                   <TableCell className="pr-5">
-                    <TaskActions
+                    <HistoryActions
                       task={task}
                       isStarting={startRunMutation.isPending}
                       onStart={() => startRunMutation.mutate(task.uuid)}
@@ -193,7 +180,7 @@ export function ResearchTaskList() {
   );
 }
 
-function TaskCard({
+function HistoryCard({
   task,
   isStarting,
   onStart,
@@ -208,49 +195,18 @@ function TaskCard({
         <StatusBadge status={statusLabels[task.status]} />
         <Badge variant="outline">{stageLabels[task.current_stage]}</Badge>
       </div>
-      <div className="mt-3">
-        <TaskTitle task={task} />
-      </div>
-      {task.failure_reason ? (
-        <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-          {task.failure_reason}
-        </p>
-      ) : null}
+      <h2 className="mt-3 font-semibold">{task.title}</h2>
+      <p className="mt-1 text-sm leading-6 text-muted-foreground">
+        {formatDate(task.created_at)}
+      </p>
       <div className="mt-4 flex flex-wrap justify-end gap-2">
-        <TaskActions task={task} isStarting={isStarting} onStart={onStart} />
+        <HistoryActions task={task} isStarting={isStarting} onStart={onStart} />
       </div>
     </article>
   );
 }
 
-function TaskTitle({ task }: { task: ResearchTask }) {
-  const title = task.title.trim();
-  const brief = task.brief.trim();
-  const showBrief = brief && brief !== title;
-  const meta = [
-    task.budget,
-    task.target_channels.join("、"),
-    task.target_audience,
-  ].filter(Boolean);
-
-  return (
-    <div className="min-w-0">
-      <p className="max-w-[520px] truncate font-medium">{title || brief}</p>
-      {showBrief ? (
-        <p className="mt-1 max-w-[560px] truncate text-xs text-muted-foreground">
-          {brief}
-        </p>
-      ) : null}
-      {meta.length ? (
-        <p className="mt-1 max-w-[560px] truncate text-xs text-muted-foreground">
-          {meta.join(" · ")}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function TaskActions({
+function HistoryActions({
   task,
   isStarting,
   onStart,
@@ -261,38 +217,44 @@ function TaskActions({
 }) {
   if (task.status === "completed") {
     return (
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
         <Button asChild size="sm">
-          <Link href={`/opportunities?task=${task.uuid}`}>
-            查看结果
-            <ArrowRight data-icon="inline-end" />
+          <Link href={`/reports/${task.uuid}`}>
+            <FileText data-icon="inline-start" />
+            报告
           </Link>
         </Button>
-        <TaskSecondaryActions task={task} />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={isStarting}
+          onClick={onStart}
+        >
+          <RefreshCcw data-icon="inline-start" />
+          重新运行
+        </Button>
       </div>
     );
   }
 
   if (task.status === "queued" || task.status === "running") {
     return (
-      <div className="flex justify-end gap-2">
-        <Button asChild size="sm">
-          <Link href={`/research/tasks/${task.uuid}`}>
-            <RefreshCcw data-icon="inline-start" />
-            查看进度
-          </Link>
-        </Button>
-        <TaskSecondaryActions task={task} />
-      </div>
+      <Button asChild size="sm">
+        <Link href={`/research/tasks/${task.uuid}`}>
+          <TimerReset data-icon="inline-start" />
+          进度
+        </Link>
+      </Button>
     );
   }
 
   return (
-    <div className="flex justify-end gap-2">
+    <div className="flex flex-wrap justify-end gap-2">
       <Button
         type="button"
-        variant={task.status === "failed" ? "outline" : "default"}
         size="sm"
+        variant={task.status === "failed" ? "outline" : "default"}
         disabled={isStarting}
         onClick={onStart}
       >
@@ -301,49 +263,14 @@ function TaskActions({
         ) : (
           <Play data-icon="inline-start" />
         )}
-        {task.status === "failed" ? "重新运行" : "开始研究"}
+        {task.status === "failed" ? "重新运行" : "启动研究"}
       </Button>
-      <TaskSecondaryActions task={task} />
+      <Button asChild variant="ghost" size="sm">
+        <Link href={`/research/tasks/${task.uuid}`}>
+          进度
+          <ArrowRight data-icon="inline-end" />
+        </Link>
+      </Button>
     </div>
-  );
-}
-
-function TaskSecondaryActions({ task }: { task: ResearchTask }) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="更多操作">
-          <MoreHorizontal aria-hidden="true" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuLabel>次要入口</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
-            <Link href={`/research/tasks/${task.uuid}`}>
-              <Eye aria-hidden="true" />
-              进度
-            </Link>
-          </DropdownMenuItem>
-          {task.status === "completed" ? (
-            <DropdownMenuItem asChild>
-              <Link href={`/reports/${task.uuid}`}>
-                <FileText aria-hidden="true" />
-                报告
-              </Link>
-            </DropdownMenuItem>
-          ) : null}
-          {task.trace_url ? (
-            <DropdownMenuItem asChild>
-              <a href={task.trace_url} target="_blank" rel="noreferrer">
-                <ExternalLink aria-hidden="true" />
-                LangSmith
-              </a>
-            </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }

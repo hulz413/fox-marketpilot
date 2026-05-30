@@ -26,6 +26,8 @@ import {
   type Opportunity,
   type OpportunityRiskLevel,
 } from "@/features/research/api";
+import { TaskContextNavigation } from "@/features/product-skeleton/components";
+import { TaskSourceInsights } from "@/features/research/source-insights";
 
 const riskLabels: Record<OpportunityRiskLevel, string> = {
   low: "低",
@@ -111,6 +113,11 @@ function ReportContent({
 
   return (
     <div className="grid gap-5">
+      <TaskContextNavigation
+        active="report"
+        sourcesHref="#sources"
+        taskUuid={taskUuid}
+      />
       <Card className="rounded-lg">
         <CardHeader>
           <Badge variant="secondary" className="w-fit">
@@ -118,7 +125,7 @@ function ReportContent({
           </Badge>
           <CardTitle className="text-2xl">基础商机推荐摘要</CardTitle>
           <CardDescription>
-            基于任务输入生成的验证草案，不包含公开来源、竞品核验或完整报告模型。
+            基于任务输入生成的验证草案；来源区域仅展示公开线索和初步参考，不代表完整市场核验。
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">
@@ -130,6 +137,8 @@ function ReportContent({
           <SummaryBlock title="下一步行动" body={topOpportunity.next_step_summary} />
         </CardContent>
       </Card>
+
+      <TaskSourceInsights taskUuid={taskUuid} />
 
       <Card className="overflow-hidden rounded-lg py-0 shadow-none">
         <CardHeader className="flex flex-row items-center justify-between gap-4 border-b px-5 py-4">
@@ -205,12 +214,17 @@ function EmptyReportState({
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <Button asChild>
-          <Link href="/research/tasks">
-            返回研究任务
-            <ArrowRight data-icon="inline-end" />
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button asChild>
+            <Link href="/research/tasks">
+              返回研究任务
+              <ArrowRight data-icon="inline-end" />
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/research/new">新建研究</Link>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

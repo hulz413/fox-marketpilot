@@ -13,6 +13,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { TaskContextNavigation } from "@/features/product-skeleton/components";
+import { OpportunitySourceInsights } from "@/features/research/source-insights";
 import {
   fetchOpportunity,
   type Opportunity,
@@ -78,6 +80,11 @@ export function OpportunityDetail({ opportunityUuid }: { opportunityUuid: string
 function OpportunityDetailContent({ opportunity }: { opportunity: Opportunity }) {
   return (
     <div className="grid gap-5">
+      <TaskContextNavigation
+        active="opportunities"
+        sourcesHref="#sources"
+        taskUuid={opportunity.research_task_uuid}
+      />
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="ghost" size="sm">
           <Link href={`/opportunities?task=${opportunity.research_task_uuid}`}>
@@ -100,10 +107,13 @@ function OpportunityDetailContent({ opportunity }: { opportunity: Opportunity })
             <Badge className="rounded-full bg-primary/10 text-primary">
               {opportunity.priority_label}
             </Badge>
+            <Badge variant="outline">风险 {riskLabels[opportunity.risk_level]}</Badge>
             <Badge variant="secondary">待验证</Badge>
           </div>
           <CardTitle className="text-2xl">{opportunity.name}</CardTitle>
-          <CardDescription>{opportunity.product_direction}</CardDescription>
+          <CardDescription className="leading-6">
+            {opportunity.product_direction}。先围绕小批量内容和询单数据验证，不把当前推荐视为已证明结论。
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5">
           <div className="grid gap-3 md:grid-cols-3">
@@ -117,29 +127,21 @@ function OpportunityDetailContent({ opportunity }: { opportunity: Opportunity })
             <InfoBlock label="推荐优先级" value={opportunity.priority_label} />
             <InfoBlock label="风险等级" value={riskLabels[opportunity.risk_level]} />
           </div>
-          <Card className="rounded-lg bg-background shadow-none">
-            <CardHeader>
-              <CardTitle>推荐理由</CardTitle>
-              <CardDescription>基础推荐草案，尚未接入来源或竞品核验。</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm leading-6 text-muted-foreground">
-                {opportunity.recommendation_reason}
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="rounded-lg bg-background shadow-none">
-            <CardHeader>
-              <CardTitle>下一步建议</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm leading-6 text-muted-foreground">
-                {opportunity.next_step_summary}
-              </p>
-            </CardContent>
-          </Card>
+          <section className="rounded-lg border bg-background p-4">
+            <h2 className="font-semibold">为什么推荐</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              {opportunity.recommendation_reason}
+            </p>
+          </section>
+          <section className="rounded-lg border bg-primary/5 p-4">
+            <h2 className="font-semibold text-primary">下一步验证动作</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              {opportunity.next_step_summary}
+            </p>
+          </section>
         </CardContent>
       </Card>
+      <OpportunitySourceInsights opportunityUuid={opportunity.uuid} />
     </div>
   );
 }

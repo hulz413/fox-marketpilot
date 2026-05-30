@@ -25,6 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { TaskContextNavigation } from "@/features/product-skeleton/components";
 import { cn } from "@/lib/utils";
 
 import {
@@ -203,6 +204,12 @@ export function ResearchProgressView({ taskUuid }: { taskUuid: string }) {
 
   return (
     <div className="grid gap-5">
+      <TaskContextNavigation
+        active="progress"
+        resultsReady={progress.status === "completed"}
+        sourcesHref={`/reports/${progress.task.uuid}#sources`}
+        taskUuid={progress.task.uuid}
+      />
       <ProgressSummary
         progress={progress}
         isStarting={startRunMutation.isPending}
@@ -224,6 +231,13 @@ function ProgressSummary({
 }) {
   const hasAction = (action: ResearchProgressAction) =>
     progress.available_actions.includes(action);
+  const eventsByStage = new Map(
+    progress.events.map((event) => [event.stage, event] as const),
+  );
+  const completedStageCount = stageTimeline.filter(
+    (stage) => getStageState(progress, stage.key, eventsByStage.get(stage.key)) === "completed",
+  ).length;
+  const progressMessage = getProgressMessage(progress, completedStageCount);
 
   return (
     <Card className="rounded-lg">
@@ -247,9 +261,21 @@ function ProgressSummary({
           </div>
         ) : null}
 
+        <section className="rounded-lg border bg-primary/5 p-4">
+          <p className="text-sm font-semibold text-primary">
+            当前阶段：{stageLabels[progress.current_stage]}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {progressMessage}
+          </p>
+        </section>
+
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <InfoBlock label="当前阶段" value={stageLabels[progress.current_stage]} />
-          <InfoBlock label="运行 ID" value={progress.run_id ?? "尚未启动"} />
+          <InfoBlock
+            label="已完成阶段"
+            value={`${completedStageCount}/${stageTimeline.length}`}
+          />
           <InfoBlock label="预算" value={progress.task.budget ?? "未填写"} />
           <InfoBlock
             label="目标渠道"
@@ -293,14 +319,6 @@ function ProgressSummary({
               </Link>
             </Button>
           ) : null}
-          {progress.trace_url ? (
-            <Button asChild variant="ghost">
-              <a href={progress.trace_url} target="_blank" rel="noreferrer">
-                <ExternalLink data-icon="inline-start" />
-                LangSmith
-              </a>
-            </Button>
-          ) : null}
           <Button asChild variant="ghost">
             <Link href="/research/tasks">
               <ArrowLeft data-icon="inline-start" />
@@ -308,8 +326,62 @@ function ProgressSummary({
             </Link>
           </Button>
         </div>
+
+        <RunDetails progress={progress} />
       </CardContent>
     </Card>
+  );
+}
+
+function getProgressMessage(
+  progress: ResearchProgress,
+  completedStageCount: number,
+) {
+  if (progress.status === "completed") {
+    return "基础商机推荐已经生成，可以继续查看商机列表、详情和基础报告。";
+  }
+
+  if (progress.status === "failed") {
+    return "本次运行没有完成，可以查看失败原因后重新运行。";
+  }
+
+  if (progress.status === "created") {
+    return "需求已经保存，启动研究后会进入后台队列并生成基础商机推荐。";
+  }
+
+  return `系统正在推进研究流程，已完成 ${completedStageCount} 个阶段。你可以停留在这里等待状态刷新。`;
+}
+
+function RunDetails({ progress }: { progress: ResearchProgress }) {
+  const latestEvent = progress.events[progress.events.length - 1];
+  const latestStageLabel = latestEvent
+    ? stageLabels[latestEvent.stage as ResearchTaskStage] ?? latestEvent.stage
+    : "暂无事件";
+
+  return (
+    <section className="rounded-lg border bg-background p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">运行详情</h2>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            调试信息用于排障，不影响用户继续查看商机结果。
+          </p>
+        </div>
+        {progress.trace_url ? (
+          <Button asChild variant="outline" size="sm">
+            <a href={progress.trace_url} target="_blank" rel="noreferrer">
+              <ExternalLink data-icon="inline-start" />
+              LangSmith
+            </a>
+          </Button>
+        ) : null}
+      </div>
+      <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <InfoBlock label="运行 ID" value={progress.run_id ?? "尚未启动"} />
+        <InfoBlock label="Trace" value={progress.trace_id ?? "未启用或未生成"} />
+        <InfoBlock label="最近事件" value={latestStageLabel} />
+      </div>
+    </section>
   );
 }
 
