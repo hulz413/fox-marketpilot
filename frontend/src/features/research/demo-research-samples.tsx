@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/features/i18n/language-provider";
 import {
   sampleResearchRequests,
   type SampleResearchRequest,
@@ -33,6 +34,7 @@ function sampleToCreateInput(sample: SampleResearchRequest): CreateResearchTaskI
 }
 
 export function DemoResearchSamples({ onFill }: DemoResearchSamplesProps) {
+  const { t } = useLanguage();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [launchError, setLaunchError] = useState<LaunchError | null>(null);
@@ -51,14 +53,14 @@ export function DemoResearchSamples({ onFill }: DemoResearchSamplesProps) {
       if (error instanceof ResearchRunStartError) {
         await queryClient.invalidateQueries({ queryKey: ["research-tasks"] });
         setLaunchError({
-          message: `${error.message} 可以从任务列表或进度页继续启动。`,
+          message: `${error.message}${t(" 可以从任务列表或进度页继续启动。")}`,
           taskUuid: error.task.uuid,
         });
         return;
       }
 
       setLaunchError({
-        message: error instanceof Error ? error.message : "启动示例研究失败，请稍后重试。",
+        message: error instanceof Error ? error.message : t("启动示例研究失败，请稍后重试。"),
       });
     },
   });
@@ -75,7 +77,7 @@ export function DemoResearchSamples({ onFill }: DemoResearchSamplesProps) {
           {launchError.taskUuid ? (
             <Button asChild variant="link" size="sm" className="mt-1 h-auto px-0">
               <Link href={`/research/tasks/${launchError.taskUuid}`}>
-                打开已创建任务
+                {t("打开已创建任务")}
                 <ArrowRight data-icon="inline-end" />
               </Link>
             </Button>
@@ -113,7 +115,7 @@ export function DemoResearchSamples({ onFill }: DemoResearchSamplesProps) {
                     onClick={() => onFill(sample)}
                   >
                     <FilePenLine data-icon="inline-start" />
-                    填入表单
+                    {t("填入表单")}
                   </Button>
                 ) : null}
                 <Button
@@ -123,7 +125,7 @@ export function DemoResearchSamples({ onFill }: DemoResearchSamplesProps) {
                   onClick={() => launchMutation.mutate(sample)}
                 >
                   <Play data-icon="inline-start" />
-                  {isPending ? "正在启动" : "启动示例"}
+                  {isPending ? t("正在启动") : t("启动示例")}
                 </Button>
               </div>
             </article>

@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
@@ -5,6 +7,7 @@ import {
   ArrowRight,
   BarChart3,
   Building2,
+  Check,
   CheckCircle2,
   CircleHelp,
   Compass,
@@ -39,6 +42,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useLanguage } from "@/features/i18n/language-provider";
 import { cn } from "@/lib/utils";
 
 import { productNavItems, type NavKey } from "./data";
@@ -62,6 +66,7 @@ export function ProductShell({
   aside,
   children,
 }: ProductShellProps) {
+  const { t } = useLanguage();
   const agentTitle = "小成本商机顾问";
   const agentDescription = "从需求、供给、竞品和风险中发现可快速验证的小生意机会。";
 
@@ -77,14 +82,14 @@ export function ProductShell({
               <div className="min-w-0">
                 <p className="text-base font-semibold leading-none">MarketPilot</p>
                 <p className="mt-1 truncate text-xs text-muted-foreground">
-                  商机顾问 Agent
+                  {t("商机顾问 Agent")}
                 </p>
               </div>
             </div>
             <UserMenu />
           </div>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            从需求、供给、竞品和风险中发现可快速验证的小生意机会。
+            {t(agentDescription)}
           </p>
           <ProductNavLinks active={active} layout="mobile" />
         </header>
@@ -97,7 +102,7 @@ export function ProductShell({
             <div className="min-w-0">
               <p className="text-lg font-semibold leading-none">MarketPilot</p>
               <p className="mt-2 truncate text-sm text-muted-foreground">
-                商机顾问 Agent
+                {t("商机顾问 Agent")}
               </p>
             </div>
           </div>
@@ -105,16 +110,16 @@ export function ProductShell({
           <div className="px-5">
             <div
               className="flex items-start gap-4 rounded-lg border bg-background p-4"
-              title={`${agentTitle}\n${agentDescription}`}
-              aria-label={`${agentTitle}，${agentDescription}`}
+              title={`${t(agentTitle)}\n${t(agentDescription)}`}
+              aria-label={`${t(agentTitle)}，${t(agentDescription)}`}
             >
               <div className="mt-1 flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
                 <Building2 className="size-4" aria-hidden="true" />
               </div>
               <div className="min-w-0">
-                <p className="text-base font-semibold">{agentTitle}</p>
+                <p className="text-base font-semibold">{t(agentTitle)}</p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  {agentDescription}
+                  {t(agentDescription)}
                 </p>
               </div>
             </div>
@@ -125,7 +130,7 @@ export function ProductShell({
           <div className="mx-5 mb-6 border-t pt-5">
             <div className="flex items-start gap-3 text-sm leading-6 text-muted-foreground">
               <CircleHelp className="mt-1 size-4 shrink-0" aria-hidden="true" />
-              <p>来源、供给、竞品、风险和验证计划会在后续切片中逐步展开。</p>
+              <p>{t("来源、供给、竞品、风险和验证计划会在后续切片中逐步展开。")}</p>
             </div>
           </div>
         </aside>
@@ -142,11 +147,11 @@ export function ProductShell({
                   eyebrow ? "mt-1" : ""
                 )}
               >
-                {title}
+                {t(title)}
               </h1>
               {description ? (
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-                  {description}
+                  {t(description)}
                 </p>
               ) : null}
             </div>
@@ -180,6 +185,8 @@ function ProductNavLinks({
   active: NavKey;
   layout: "desktop" | "mobile";
 }) {
+  const { t } = useLanguage();
+
   return (
     <nav
       className={cn(
@@ -187,7 +194,7 @@ function ProductNavLinks({
           ? "flex flex-1 flex-col gap-1 px-5 py-6"
           : "mt-4 flex gap-2 overflow-x-auto pb-1",
       )}
-      aria-label="主导航"
+      aria-label={t("主导航")}
     >
       {productNavItems.map((item) => {
         const Icon = item.icon;
@@ -208,7 +215,7 @@ function ProductNavLinks({
             )}
           >
             <Icon className="size-5" aria-hidden="true" />
-            <span className="whitespace-nowrap">{item.label}</span>
+            <span className="whitespace-nowrap">{t(item.label)}</span>
           </Link>
         );
       })}
@@ -217,6 +224,8 @@ function ProductNavLinks({
 }
 
 function UserMenu() {
+  const { language, setLanguage, t } = useLanguage();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -224,7 +233,7 @@ function UserMenu() {
           variant="ghost"
           size="icon-lg"
           className="size-10 cursor-pointer rounded-full bg-transparent p-0 hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=open]:bg-transparent"
-          aria-label="用户菜单"
+          aria-label={t("用户菜单")}
         >
           <Avatar size="lg">
             <AvatarFallback className="bg-primary text-primary-foreground">
@@ -234,20 +243,38 @@ function UserMenu() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>演示用户</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("演示用户")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <Languages aria-hidden="true" />
-              <span>切换语言</span>
+              <span>{t("切换语言")}</span>
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-32">
+            <DropdownMenuSubContent className="w-36">
               <DropdownMenuGroup>
-                <DropdownMenuItem disabled className="text-muted-foreground">
-                  中文
+                <DropdownMenuItem
+                  disabled={language === "zh"}
+                  onSelect={() => setLanguage("zh")}
+                >
+                  {language === "zh" ? (
+                    <Check aria-hidden="true" />
+                  ) : (
+                    <span className="size-4" />
+                  )}
+                  {t("中文")}
                 </DropdownMenuItem>
-                <DropdownMenuItem>English</DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={language === "en"}
+                  onSelect={() => setLanguage("en")}
+                >
+                  {language === "en" ? (
+                    <Check aria-hidden="true" />
+                  ) : (
+                    <span className="size-4" />
+                  )}
+                  {t("English")}
+                </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
@@ -272,24 +299,25 @@ export function TaskContextNavigation({
   sourcesCount?: number | null;
   sourcesHref?: string;
 }) {
+  const { t } = useLanguage();
   const items = [
     {
       key: "progress" as const,
-      label: "进度",
+      label: t("进度"),
       href: `/research/tasks/${taskUuid}`,
       icon: TimerReset,
       enabled: true,
     },
     {
       key: "opportunities" as const,
-      label: "商机",
+      label: t("商机"),
       href: `/opportunities?task=${taskUuid}`,
       icon: BarChart3,
       enabled: resultsReady,
     },
     {
       key: "report" as const,
-      label: "报告",
+      label: t("报告"),
       href: `/reports/${taskUuid}`,
       icon: FileText,
       enabled: resultsReady,
@@ -297,7 +325,9 @@ export function TaskContextNavigation({
     {
       key: "sources" as const,
       label:
-        typeof sourcesCount === "number" ? `来源 ${sourcesCount}` : "来源线索",
+        typeof sourcesCount === "number"
+          ? t("来源 {count}", { count: sourcesCount })
+          : t("来源线索"),
       href: sourcesHref ?? `/reports/${taskUuid}#sources`,
       icon: SearchCheck,
       enabled: resultsReady,
@@ -306,7 +336,7 @@ export function TaskContextNavigation({
 
   return (
     <nav
-      aria-label="任务上下文导航"
+      aria-label={t("任务上下文导航")}
       className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2"
     >
       {items.map((item) => {
@@ -341,6 +371,7 @@ export function TaskContextNavigation({
 }
 
 export function StatusBadge({ status }: { status: string }) {
+  const { t } = useLanguage();
   const tone =
     status === "失败"
       ? "border-destructive/30 bg-destructive/10 text-destructive"
@@ -350,24 +381,26 @@ export function StatusBadge({ status }: { status: string }) {
 
   return (
     <Badge variant="outline" className={cn("rounded-full px-3 py-1", tone)}>
-      {status}
+      {t(status)}
     </Badge>
   );
 }
 
 export function EmptyResearchState() {
+  const { t } = useLanguage();
+
   return (
     <Card className="rounded-lg border-dashed">
       <CardHeader>
-        <CardTitle>还没有真实研究任务</CardTitle>
+        <CardTitle>{t("还没有真实研究任务")}</CardTitle>
         <CardDescription>
-          首次演示可以直接启动下面的中文示例；创建后会进入真实任务进度页。
+          {t("首次演示可以直接启动下面的中文示例；创建后会进入真实任务进度页。")}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <Button asChild className="w-fit">
           <Link href="/research/new">
-            新建研究
+            {t("新建研究")}
             <ArrowRight data-icon="inline-end" />
           </Link>
         </Button>
@@ -378,6 +411,7 @@ export function EmptyResearchState() {
 }
 
 export function TaskStateCards() {
+  const { t } = useLanguage();
   const states = [
     {
       title: "运行中",
@@ -407,8 +441,8 @@ export function TaskStateCards() {
               <div className="mb-2 flex size-9 items-center justify-center rounded-md bg-primary/10 text-primary">
                 <Icon className="size-4" aria-hidden="true" />
               </div>
-              <CardTitle>{state.title}</CardTitle>
-              <CardDescription>{state.body}</CardDescription>
+              <CardTitle>{t(state.title)}</CardTitle>
+              <CardDescription>{t(state.body)}</CardDescription>
             </CardHeader>
           </Card>
         );

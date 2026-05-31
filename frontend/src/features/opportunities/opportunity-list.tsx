@@ -27,6 +27,7 @@ import {
   type Opportunity,
   type OpportunityRiskLevel,
 } from "@/features/research/api";
+import { useLanguage } from "@/features/i18n/language-provider";
 import { TaskContextNavigation } from "@/features/product-skeleton/components";
 
 const riskLabels: Record<OpportunityRiskLevel, string> = {
@@ -36,6 +37,7 @@ const riskLabels: Record<OpportunityRiskLevel, string> = {
 };
 
 export function OpportunityList() {
+  const { t } = useLanguage();
   const searchParams = useSearchParams();
   const taskUuid = searchParams.get("task");
   const {
@@ -62,8 +64,8 @@ export function OpportunityList() {
     return (
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle>基础商机推荐</CardTitle>
-          <CardDescription>正在读取任务生成的待验证商机。</CardDescription>
+          <CardTitle>{t("基础商机推荐")}</CardTitle>
+          <CardDescription>{t("正在读取任务生成的待验证商机。")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-28 rounded-md border bg-muted/40" />
@@ -76,20 +78,20 @@ export function OpportunityList() {
     return (
       <Card className="rounded-lg border-destructive/30">
         <CardHeader>
-          <CardTitle>商机读取失败</CardTitle>
+          <CardTitle>{t("商机读取失败")}</CardTitle>
           <CardDescription>
-            {error instanceof Error ? error.message : "无法读取商机结果。"}
+            {error instanceof Error ? error.message : t("无法读取商机结果。")}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex gap-2">
           <Button type="button" variant="outline" onClick={() => void refetch()}>
             <RefreshCcw data-icon="inline-start" />
-            重新加载
+            {t("重新加载")}
           </Button>
           <Button asChild variant="ghost">
             <Link href="/research/tasks">
               <ClipboardList data-icon="inline-start" />
-              返回任务
+              {t("返回任务")}
             </Link>
           </Button>
         </CardContent>
@@ -112,17 +114,19 @@ export function OpportunityList() {
       <Card className="overflow-hidden rounded-lg py-0 shadow-none">
         <CardHeader className="flex flex-row items-center justify-between gap-4 border-b px-5 py-4">
           <div className="min-w-0">
-            <CardTitle>基础商机推荐</CardTitle>
+            <CardTitle>{t("基础商机推荐")}</CardTitle>
             <CardDescription>
-              基于任务输入生成的待验证草案，不包含来源或竞品核验。
+              {t("基于任务输入生成的待验证草案，不包含来源或竞品核验。")}
             </CardDescription>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Badge variant="secondary">{opportunities.length} 个推荐</Badge>
+            <Badge variant="secondary">
+              {t("{count} 个推荐", { count: opportunities.length })}
+            </Badge>
             <Button asChild variant="outline" size="sm">
               <Link href={`/reports/${taskUuid}`}>
                 <FileText data-icon="inline-start" />
-                基础报告
+                {t("基础报告")}
               </Link>
             </Button>
           </div>
@@ -145,12 +149,12 @@ export function OpportunityList() {
               </colgroup>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="h-14 px-5">排序</TableHead>
-                  <TableHead>商机名称</TableHead>
-                  <TableHead>验证动作</TableHead>
-                  <TableHead>价格 / 风险</TableHead>
-                  <TableHead>推荐优先级</TableHead>
-                  <TableHead className="pr-5 text-right">操作</TableHead>
+                  <TableHead className="h-14 px-5">{t("排序")}</TableHead>
+                  <TableHead>{t("商机名称")}</TableHead>
+                  <TableHead>{t("验证动作")}</TableHead>
+                  <TableHead>{t("价格 / 风险")}</TableHead>
+                  <TableHead>{t("推荐优先级")}</TableHead>
+                  <TableHead className="pr-5 text-right">{t("操作")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -167,6 +171,8 @@ export function OpportunityList() {
 }
 
 function OpportunityRow({ opportunity }: { opportunity: Opportunity }) {
+  const { t } = useLanguage();
+
   return (
     <TableRow>
       <TableCell className="px-5 py-5 align-top">
@@ -184,7 +190,7 @@ function OpportunityRow({ opportunity }: { opportunity: Opportunity }) {
       <TableCell className="whitespace-normal py-5 align-top">
         <p className="font-medium leading-5">{opportunity.price_band}</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          风险 {riskLabels[opportunity.risk_level]}
+          {t("风险 {level}", { level: t(riskLabels[opportunity.risk_level]) })}
         </p>
       </TableCell>
       <TableCell className="whitespace-normal py-5 align-top">
@@ -195,7 +201,7 @@ function OpportunityRow({ opportunity }: { opportunity: Opportunity }) {
       <TableCell className="py-5 pr-5 text-right align-top">
         <Button asChild variant="outline" size="sm">
           <Link href={`/opportunities/${opportunity.uuid}`}>
-            详情
+            {t("详情")}
             <ArrowRight data-icon="inline-end" />
           </Link>
         </Button>
@@ -205,6 +211,8 @@ function OpportunityRow({ opportunity }: { opportunity: Opportunity }) {
 }
 
 function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
+  const { t } = useLanguage();
+
   return (
     <article className="rounded-lg border bg-background p-4">
       <div className="flex items-start justify-between gap-3">
@@ -214,7 +222,9 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
             <Badge className="rounded-full bg-primary/10 text-primary">
               {opportunity.priority_label}
             </Badge>
-            <Badge variant="secondary">风险 {riskLabels[opportunity.risk_level]}</Badge>
+            <Badge variant="secondary">
+              {t("风险 {level}", { level: t(riskLabels[opportunity.risk_level]) })}
+            </Badge>
           </div>
           <h2 className="mt-3 font-semibold">{opportunity.name}</h2>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -223,15 +233,15 @@ function OpportunityCard({ opportunity }: { opportunity: Opportunity }) {
         </div>
         <Button asChild variant="outline" size="sm">
           <Link href={`/opportunities/${opportunity.uuid}`}>
-            详情
+            {t("详情")}
             <ArrowRight data-icon="inline-end" />
           </Link>
         </Button>
       </div>
       <div className="mt-4 grid gap-3 text-sm">
-        <InfoLine label="目标人群" value={opportunity.target_audience} />
-        <InfoLine label="价格带" value={opportunity.price_band} />
-        <InfoLine label="验证动作" value={opportunity.next_step_summary} />
+        <InfoLine label={t("目标人群")} value={opportunity.target_audience} />
+        <InfoLine label={t("价格带")} value={opportunity.price_band} />
+        <InfoLine label={t("验证动作")} value={opportunity.next_step_summary} />
       </div>
     </article>
   );
@@ -253,16 +263,18 @@ function EmptyOpportunityState({
   title: string;
   description: string;
 }) {
+  const { t } = useLanguage();
+
   return (
     <Card className="rounded-lg border-dashed">
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardTitle>{t(title)}</CardTitle>
+        <CardDescription>{t(description)}</CardDescription>
       </CardHeader>
       <CardContent>
         <Button asChild>
           <Link href="/research/tasks">
-            返回研究任务
+            {t("返回研究任务")}
             <ArrowRight data-icon="inline-end" />
           </Link>
         </Button>

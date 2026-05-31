@@ -45,6 +45,17 @@ test("new research form supports sample fill and direct launch", () => {
   assert.match(source, /直接启动一个完整演示任务/);
 });
 
+test("language menu keeps bilingual UI toggle with Chinese default", () => {
+  const shell = readSource("src/features/product-skeleton/components.tsx");
+  const provider = readSource("src/features/i18n/language-provider.tsx");
+
+  assert.match(shell, /DropdownMenuSub/);
+  assert.match(shell, /setLanguage\("zh"\)/);
+  assert.match(shell, /setLanguage\("en"\)/);
+  assert.match(provider, /defaultLanguage: Language = "zh"/);
+  assert.match(provider, /Research tasks/);
+});
+
 test("source transparency keeps cautious copy and non-blocking states", () => {
   const source = readSource("src/features/research/source-insights.tsx");
 

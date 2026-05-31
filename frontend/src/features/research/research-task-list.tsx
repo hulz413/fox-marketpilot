@@ -38,6 +38,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useLanguage } from "@/features/i18n/language-provider";
 import {
   EmptyResearchState,
   StatusBadge,
@@ -72,8 +73,8 @@ const stageLabels: Record<ResearchTask["current_stage"], string> = {
   failed: "生成失败",
 };
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
+function formatDate(value: string, language: "zh" | "en") {
+  return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -82,6 +83,7 @@ function formatDate(value: string) {
 }
 
 export function ResearchTaskList() {
+  const { language, t } = useLanguage();
   const queryClient = useQueryClient();
   const {
     data: tasks,
@@ -104,8 +106,8 @@ export function ResearchTaskList() {
     return (
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle>研究任务列表</CardTitle>
-          <CardDescription>正在加载真实研究任务。</CardDescription>
+          <CardTitle>{t("研究任务列表")}</CardTitle>
+          <CardDescription>{t("正在加载真实研究任务。")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-24 rounded-md border bg-muted/40" />
@@ -118,15 +120,15 @@ export function ResearchTaskList() {
     return (
       <Card className="rounded-lg border-destructive/30">
         <CardHeader>
-          <CardTitle>任务加载失败</CardTitle>
+          <CardTitle>{t("任务加载失败")}</CardTitle>
           <CardDescription>
-            {error instanceof Error ? error.message : "无法读取研究任务。"}
+            {error instanceof Error ? error.message : t("无法读取研究任务。")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button type="button" variant="outline" onClick={() => void refetch()}>
             <RefreshCcw data-icon="inline-start" />
-            重新加载
+            {t("重新加载")}
           </Button>
         </CardContent>
       </Card>
@@ -141,10 +143,10 @@ export function ResearchTaskList() {
     <Card className="overflow-hidden rounded-lg py-0 shadow-none">
       <CardHeader className="flex flex-row items-center justify-between gap-4 border-b px-5 py-4">
         <div>
-          <CardTitle>研究任务列表</CardTitle>
-          <CardDescription>展示真实创建的任务和当前状态。</CardDescription>
+          <CardTitle>{t("研究任务列表")}</CardTitle>
+          <CardDescription>{t("展示真实创建的任务和当前状态。")}</CardDescription>
         </div>
-        <Badge variant="secondary">{tasks.length} 个任务</Badge>
+        <Badge variant="secondary">{t("{count} 个任务", { count: tasks.length })}</Badge>
       </CardHeader>
       <CardContent className="p-0">
         <div className="grid gap-3 p-4 md:hidden">
@@ -161,11 +163,11 @@ export function ResearchTaskList() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="h-14 px-5">任务</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>阶段摘要</TableHead>
-                <TableHead>创建时间</TableHead>
-                <TableHead className="pr-5 text-right">下一步</TableHead>
+                <TableHead className="h-14 px-5">{t("任务")}</TableHead>
+                <TableHead>{t("状态")}</TableHead>
+                <TableHead>{t("阶段摘要")}</TableHead>
+                <TableHead>{t("创建时间")}</TableHead>
+                <TableHead className="pr-5 text-right">{t("下一步")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -178,10 +180,10 @@ export function ResearchTaskList() {
                     <StatusBadge status={statusLabels[task.status]} />
                   </TableCell>
                   <TableCell className="max-w-[220px] text-sm text-muted-foreground">
-                    {stageLabels[task.current_stage]}
+                    {t(stageLabels[task.current_stage])}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {formatDate(task.created_at)}
+                    {formatDate(task.created_at, language)}
                   </TableCell>
                   <TableCell className="pr-5">
                     <TaskActions
@@ -209,11 +211,13 @@ function TaskCard({
   isStarting: boolean;
   onStart: () => void;
 }) {
+  const { t } = useLanguage();
+
   return (
     <article className="rounded-lg border bg-background p-4">
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge status={statusLabels[task.status]} />
-        <Badge variant="outline">{stageLabels[task.current_stage]}</Badge>
+        <Badge variant="outline">{t(stageLabels[task.current_stage])}</Badge>
       </div>
       <div className="mt-3">
         <TaskTitle task={task} />
@@ -266,12 +270,14 @@ function TaskActions({
   isStarting: boolean;
   onStart: () => void;
 }) {
+  const { t } = useLanguage();
+
   if (task.status === "completed") {
     return (
       <div className="flex justify-end gap-2">
         <Button asChild size="sm">
           <Link href={`/opportunities?task=${task.uuid}`}>
-            查看结果
+            {t("查看结果")}
             <ArrowRight data-icon="inline-end" />
           </Link>
         </Button>
@@ -286,7 +292,7 @@ function TaskActions({
         <Button asChild size="sm">
           <Link href={`/research/tasks/${task.uuid}`}>
             <RefreshCcw data-icon="inline-start" />
-            查看进度
+            {t("查看进度")}
           </Link>
         </Button>
         <TaskSecondaryActions task={task} />
@@ -308,7 +314,7 @@ function TaskActions({
         ) : (
           <Play data-icon="inline-start" />
         )}
-        {task.status === "failed" ? "重新运行" : "开始研究"}
+        {task.status === "failed" ? t("重新运行") : t("开始研究")}
       </Button>
       <TaskSecondaryActions task={task} />
     </div>
@@ -316,28 +322,30 @@ function TaskActions({
 }
 
 function TaskSecondaryActions({ task }: { task: ResearchTask }) {
+  const { t } = useLanguage();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="更多操作">
+        <Button variant="ghost" size="icon-sm" aria-label={t("更多操作")}>
           <MoreHorizontal aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
-        <DropdownMenuLabel>次要入口</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("次要入口")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
             <Link href={`/research/tasks/${task.uuid}`}>
               <Eye aria-hidden="true" />
-              进度
+              {t("进度")}
             </Link>
           </DropdownMenuItem>
           {task.status === "completed" ? (
             <DropdownMenuItem asChild>
               <Link href={`/reports/${task.uuid}`}>
                 <FileText aria-hidden="true" />
-                报告
+                {t("报告")}
               </Link>
             </DropdownMenuItem>
           ) : null}

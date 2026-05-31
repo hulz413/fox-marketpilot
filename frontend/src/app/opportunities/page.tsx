@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { LocalizedText } from "@/features/i18n/language-provider";
 import { ProductShell } from "@/features/product-skeleton/components";
 import { OpportunityList } from "@/features/opportunities/opportunity-list";
 
@@ -22,7 +23,7 @@ export default function OpportunitiesPage() {
       action={
         <Button asChild>
           <Link href="/research/tasks">
-            研究任务
+            <LocalizedText source="研究任务" />
             <ClipboardList data-icon="inline-end" />
           </Link>
         </Button>
@@ -39,8 +40,12 @@ function OpportunityListFallback() {
   return (
     <Card className="rounded-lg">
       <CardHeader>
-        <CardTitle>基础商机推荐</CardTitle>
-        <CardDescription>正在准备任务结果视图。</CardDescription>
+        <CardTitle>
+          <LocalizedText source="基础商机推荐" />
+        </CardTitle>
+        <CardDescription>
+          <LocalizedText source="正在准备任务结果视图。" />
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-28 rounded-md border bg-muted/40" />

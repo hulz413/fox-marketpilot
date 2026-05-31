@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ClipboardList } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { LocalizedText } from "@/features/i18n/language-provider";
 import { ProductShell } from "@/features/product-skeleton/components";
 import { OpportunityDetail } from "@/features/opportunities/opportunity-detail";
 
@@ -20,7 +21,7 @@ export default async function OpportunityDetailPage({
       action={
         <Button asChild>
           <Link href="/research/tasks">
-            研究任务
+            <LocalizedText source="研究任务" />
             <ClipboardList data-icon="inline-end" />
           </Link>
         </Button>

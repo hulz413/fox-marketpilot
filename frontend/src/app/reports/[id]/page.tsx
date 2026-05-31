@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BarChart3, ClipboardList } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { LocalizedText } from "@/features/i18n/language-provider";
 import { ProductShell } from "@/features/product-skeleton/components";
 import { ReportSummary } from "@/features/reports/report-summary";
 
@@ -22,12 +23,12 @@ export default async function ReportPage({
           <Button asChild variant="outline">
             <Link href="/research/tasks">
               <ClipboardList data-icon="inline-start" />
-              研究任务
+              <LocalizedText source="研究任务" />
             </Link>
           </Button>
           <Button asChild>
             <Link href={id === "demo-report" ? "/opportunities" : `/opportunities?task=${id}`}>
-              商机推荐
+              <LocalizedText source="商机推荐" />
               <BarChart3 data-icon="inline-end" />
             </Link>
           </Button>

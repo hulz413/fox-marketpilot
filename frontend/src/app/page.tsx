@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { LocalizedText } from "@/features/i18n/language-provider";
 import {
   ProductShell,
   TaskStateCards,
@@ -17,7 +18,7 @@ export default function HomePage() {
       action={
         <Button asChild>
           <Link href="/research/new">
-            新建研究
+            <LocalizedText source="新建研究" />
             <ArrowRight data-icon="inline-end" />
           </Link>
         </Button>

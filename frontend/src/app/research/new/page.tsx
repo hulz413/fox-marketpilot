@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { LocalizedText } from "@/features/i18n/language-provider";
 import { ProductShell } from "@/features/product-skeleton/components";
 import { NewResearchForm } from "@/features/research/new-research-form";
 
@@ -14,7 +15,7 @@ export default function NewResearchPage() {
       action={
         <Button asChild>
           <Link href="/research/tasks">
-            查看任务
+            <LocalizedText source="查看任务" />
             <ArrowRight data-icon="inline-end" />
           </Link>
         </Button>

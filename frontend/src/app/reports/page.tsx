@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { LocalizedText } from "@/features/i18n/language-provider";
 import { ProductShell } from "@/features/product-skeleton/components";
 
 export default function ReportsIndexPage() {
@@ -20,7 +21,7 @@ export default function ReportsIndexPage() {
       action={
         <Button asChild>
           <Link href="/research/tasks">
-            研究任务
+            <LocalizedText source="研究任务" />
             <ClipboardList data-icon="inline-end" />
           </Link>
         </Button>
@@ -28,21 +29,23 @@ export default function ReportsIndexPage() {
     >
       <Card className="rounded-lg border-dashed">
         <CardHeader>
-          <CardTitle>请选择一条已完成任务</CardTitle>
+          <CardTitle>
+            <LocalizedText source="请选择一条已完成任务" />
+          </CardTitle>
           <CardDescription>
-            报告需要绑定真实研究任务，避免把静态演示内容误当成本次研究结果。
+            <LocalizedText source="报告需要绑定真实研究任务，避免把静态演示内容误当成本次研究结果。" />
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
           <Button asChild>
             <Link href="/research/tasks">
               <ClipboardList data-icon="inline-start" />
-              返回研究任务
+              <LocalizedText source="返回研究任务" />
             </Link>
           </Button>
           <Button asChild variant="outline">
             <Link href="/research/new">
-              新建研究
+              <LocalizedText source="新建研究" />
               <Sparkles data-icon="inline-end" />
             </Link>
           </Button>

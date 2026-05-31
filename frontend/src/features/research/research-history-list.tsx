@@ -26,6 +26,7 @@ import {
   EmptyResearchState,
   StatusBadge,
 } from "@/features/product-skeleton/components";
+import { useLanguage } from "@/features/i18n/language-provider";
 
 import { fetchResearchTasks, startResearchRun, type ResearchTask } from "./api";
 
@@ -56,8 +57,8 @@ const stageLabels: Record<ResearchTask["current_stage"], string> = {
   failed: "生成失败",
 };
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
+function formatDate(value: string, language: "zh" | "en") {
+  return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -67,6 +68,7 @@ function formatDate(value: string) {
 }
 
 export function ResearchHistoryList() {
+  const { language, t } = useLanguage();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: tasks, error, isLoading, refetch } = useQuery({
@@ -86,8 +88,8 @@ export function ResearchHistoryList() {
     return (
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle>历史研究列表</CardTitle>
-          <CardDescription>正在加载真实研究任务。</CardDescription>
+          <CardTitle>{t("历史研究列表")}</CardTitle>
+          <CardDescription>{t("正在加载真实研究任务。")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-24 rounded-md border bg-muted/40" />
@@ -100,15 +102,15 @@ export function ResearchHistoryList() {
     return (
       <Card className="rounded-lg border-destructive/30">
         <CardHeader>
-          <CardTitle>历史加载失败</CardTitle>
+          <CardTitle>{t("历史加载失败")}</CardTitle>
           <CardDescription>
-            {error instanceof Error ? error.message : "无法读取研究历史。"}
+            {error instanceof Error ? error.message : t("无法读取研究历史。")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Button type="button" variant="outline" onClick={() => void refetch()}>
             <RefreshCcw data-icon="inline-start" />
-            重新加载
+            {t("重新加载")}
           </Button>
         </CardContent>
       </Card>
@@ -123,10 +125,10 @@ export function ResearchHistoryList() {
     <Card className="overflow-hidden rounded-lg py-0 shadow-none">
       <CardHeader className="flex flex-row items-center justify-between gap-4 border-b px-5 py-4">
         <div>
-          <CardTitle>历史研究列表</CardTitle>
-          <CardDescription>真实任务的继续入口，按创建时间倒序展示。</CardDescription>
+          <CardTitle>{t("历史研究列表")}</CardTitle>
+          <CardDescription>{t("真实任务的继续入口，按创建时间倒序展示。")}</CardDescription>
         </div>
-        <Badge variant="secondary">{tasks.length} 条记录</Badge>
+        <Badge variant="secondary">{t("{count} 条记录", { count: tasks.length })}</Badge>
       </CardHeader>
       <CardContent className="p-0">
         <div className="grid gap-3 p-4 md:hidden">
@@ -143,11 +145,11 @@ export function ResearchHistoryList() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="h-14 px-5">任务</TableHead>
-                <TableHead>创建时间</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>当前阶段</TableHead>
-                <TableHead className="pr-5 text-right">操作</TableHead>
+                <TableHead className="h-14 px-5">{t("任务")}</TableHead>
+                <TableHead>{t("创建时间")}</TableHead>
+                <TableHead>{t("状态")}</TableHead>
+                <TableHead>{t("当前阶段")}</TableHead>
+                <TableHead className="pr-5 text-right">{t("操作")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -162,13 +164,13 @@ export function ResearchHistoryList() {
                     </p>
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
-                    {formatDate(task.created_at)}
+                    {formatDate(task.created_at, language)}
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={statusLabels[task.status]} />
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {stageLabels[task.current_stage]}
+                    {t(stageLabels[task.current_stage])}
                   </TableCell>
                   <TableCell className="pr-5">
                     <HistoryActions
@@ -196,15 +198,17 @@ function HistoryCard({
   isStarting: boolean;
   onStart: () => void;
 }) {
+  const { language, t } = useLanguage();
+
   return (
     <article className="rounded-lg border bg-background p-4">
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge status={statusLabels[task.status]} />
-        <Badge variant="outline">{stageLabels[task.current_stage]}</Badge>
+        <Badge variant="outline">{t(stageLabels[task.current_stage])}</Badge>
       </div>
       <h2 className="mt-3 font-semibold">{task.title}</h2>
       <p className="mt-1 text-sm leading-6 text-muted-foreground">
-        {formatDate(task.created_at)}
+        {formatDate(task.created_at, language)}
       </p>
       <div className="mt-4 flex flex-wrap justify-end gap-2">
         <HistoryActions task={task} isStarting={isStarting} onStart={onStart} />
@@ -222,13 +226,15 @@ function HistoryActions({
   isStarting: boolean;
   onStart: () => void;
 }) {
+  const { t } = useLanguage();
+
   if (task.status === "completed") {
     return (
       <div className="flex flex-wrap justify-end gap-2">
         <Button asChild size="sm">
           <Link href={`/reports/${task.uuid}`}>
             <FileText data-icon="inline-start" />
-            报告
+            {t("报告")}
           </Link>
         </Button>
         <Button
@@ -239,7 +245,7 @@ function HistoryActions({
           onClick={onStart}
         >
           <RefreshCcw data-icon="inline-start" />
-          重新运行
+          {t("重新运行")}
         </Button>
       </div>
     );
@@ -250,7 +256,7 @@ function HistoryActions({
       <Button asChild size="sm">
         <Link href={`/research/tasks/${task.uuid}`}>
           <TimerReset data-icon="inline-start" />
-          进度
+          {t("进度")}
         </Link>
       </Button>
     );
@@ -270,11 +276,11 @@ function HistoryActions({
         ) : (
           <Play data-icon="inline-start" />
         )}
-        {task.status === "failed" ? "重新运行" : "启动研究"}
+        {task.status === "failed" ? t("重新运行") : t("启动研究")}
       </Button>
       <Button asChild variant="ghost" size="sm">
         <Link href={`/research/tasks/${task.uuid}`}>
-          进度
+          {t("进度")}
           <ArrowRight data-icon="inline-end" />
         </Link>
       </Button>

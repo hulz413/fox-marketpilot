@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useLanguage } from "@/features/i18n/language-provider";
 import {
   sampleResearchRequests,
   type SampleResearchRequest,
@@ -87,6 +88,7 @@ function sampleToFormValues(sample: SampleResearchRequest): NewResearchFormValue
 const defaultValues = sampleToFormValues(sampleResearchRequests[0]);
 
 export function NewResearchForm() {
+  const { t } = useLanguage();
   const router = useRouter();
   const queryClient = useQueryClient();
   const {
@@ -156,7 +158,7 @@ export function NewResearchForm() {
       }
 
       setError("root.server", {
-        message: error instanceof Error ? error.message : "创建任务失败，请稍后重试。",
+        message: error instanceof Error ? error.message : t("创建任务失败，请稍后重试。"),
       });
     }
   }
@@ -168,9 +170,9 @@ export function NewResearchForm() {
           <div className="mb-2 flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Sparkles className="size-5" aria-hidden="true" />
           </div>
-          <CardTitle>研究需求</CardTitle>
+          <CardTitle>{t("研究需求")}</CardTitle>
           <CardDescription>
-            提交后会创建真实研究任务，并启动基础商机推荐生成。
+            {t("提交后会创建真实研究任务，并启动基础商机推荐生成。")}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -182,9 +184,9 @@ export function NewResearchForm() {
 
           <FieldGroup className="gap-4">
             <Field data-invalid={Boolean(errors.brief)}>
-              <FieldLabel htmlFor="research-brief">自然语言需求</FieldLabel>
+              <FieldLabel htmlFor="research-brief">{t("自然语言需求")}</FieldLabel>
               <FieldDescription>
-                用一句话描述预算、渠道、偏好品类和排除条件。
+                {t("用一句话描述预算、渠道、偏好品类和排除条件。")}
               </FieldDescription>
               <Textarea
                 id="research-brief"
@@ -198,35 +200,35 @@ export function NewResearchForm() {
 
           <FieldGroup className="grid gap-4 md:grid-cols-2">
             <Field>
-              <FieldLabel htmlFor="budget">验证预算</FieldLabel>
+              <FieldLabel htmlFor="budget">{t("验证预算")}</FieldLabel>
               <Input id="budget" {...register("budget")} />
             </Field>
             <Field>
-              <FieldLabel htmlFor="target-channels">目标渠道</FieldLabel>
+              <FieldLabel htmlFor="target-channels">{t("目标渠道")}</FieldLabel>
               <Input id="target-channels" {...register("targetChannels")} />
             </Field>
             <Field>
-              <FieldLabel htmlFor="target-audience">目标人群</FieldLabel>
+              <FieldLabel htmlFor="target-audience">{t("目标人群")}</FieldLabel>
               <Input id="target-audience" {...register("targetAudience")} />
             </Field>
             <Field>
-              <FieldLabel htmlFor="expected-profit">期望利润</FieldLabel>
+              <FieldLabel htmlFor="expected-profit">{t("期望利润")}</FieldLabel>
               <Input id="expected-profit" {...register("expectedProfit")} />
             </Field>
             <Field>
-              <FieldLabel htmlFor="preferred-categories">偏好品类</FieldLabel>
+              <FieldLabel htmlFor="preferred-categories">{t("偏好品类")}</FieldLabel>
               <Input id="preferred-categories" {...register("preferredCategories")} />
             </Field>
             <Field>
-              <FieldLabel htmlFor="excluded-categories">排除品类</FieldLabel>
+              <FieldLabel htmlFor="excluded-categories">{t("排除品类")}</FieldLabel>
               <Input id="excluded-categories" {...register("excludedCategories")} />
             </Field>
             <Field>
-              <FieldLabel htmlFor="supply-preferences">供给来源偏好</FieldLabel>
+              <FieldLabel htmlFor="supply-preferences">{t("供给来源偏好")}</FieldLabel>
               <Input id="supply-preferences" {...register("supplyPreferences")} />
             </Field>
             <Field>
-              <FieldLabel htmlFor="constraints">其他限制条件</FieldLabel>
+              <FieldLabel htmlFor="constraints">{t("其他限制条件")}</FieldLabel>
               <Input id="constraints" {...register("constraints")} />
             </Field>
           </FieldGroup>
@@ -234,7 +236,7 @@ export function NewResearchForm() {
           <div className="flex flex-wrap gap-2">
             {["轻库存优先", "毛利 30%+", "中文内容平台", "待验证推荐"].map((item) => (
               <Badge key={item} variant="secondary">
-                {item}
+                {t(item)}
               </Badge>
             ))}
           </div>
@@ -242,8 +244,8 @@ export function NewResearchForm() {
           <div className="flex flex-wrap gap-3">
             <Button type="submit" disabled={isSubmitting || createTaskMutation.isPending}>
               {isSubmitting || createTaskMutation.isPending
-                ? "正在启动"
-                : "创建并启动"}
+                ? t("正在启动")
+                : t("创建并启动")}
               <ArrowRight data-icon="inline-end" />
             </Button>
             <Button
@@ -251,7 +253,7 @@ export function NewResearchForm() {
               variant="outline"
               onClick={() => router.push("/research/tasks")}
             >
-              查看任务
+              {t("查看任务")}
             </Button>
           </div>
         </CardContent>
@@ -259,9 +261,9 @@ export function NewResearchForm() {
 
       <Card className="rounded-lg">
         <CardHeader>
-          <CardTitle>中文示例需求</CardTitle>
+          <CardTitle>{t("中文示例需求")}</CardTitle>
           <CardDescription>
-            可以先填入表单微调，也可以直接启动一个完整演示任务。
+            {t("可以先填入表单微调，也可以直接启动一个完整演示任务。")}
           </CardDescription>
         </CardHeader>
         <CardContent>
