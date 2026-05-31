@@ -16,3 +16,4 @@ import app.modules.validation_budgets.models  # noqa: E402,F401
 import app.modules.opportunity_risks.models  # noqa: E402,F401
 import app.modules.action_plans.models  # noqa: E402,F401
 import app.modules.rag_retrieval.models  # noqa: E402,F401
+import app.modules.rag_quality_evaluation.models  # noqa: E402,F401

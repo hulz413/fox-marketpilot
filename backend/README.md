@@ -51,6 +51,25 @@ LANGSMITH_TRACING=true
 `retrieval_query_count`、`retrieval_result_count`、`retrieval_source_types` 和
 `retrieval_scope`。
 
+## RAG 检索质量评测
+
+`evaluate-rag-quality` 增加内部 RAG 检索评测入口，只评估当前任务内 retriever 的召回和排序质量，
+不评估索引健康或生成答案质量。评测会加载默认中文 fixture，复用任务内 RAG chunks，保存
+`hit_rate@k`、`recall@k`、`precision@k`、`mrr@k` 和 `ndcg@k`。
+
+先完成一次研究任务并建立 RAG evidence chunks，然后运行：
+
+```bash
+python -m app.modules.rag_quality_evaluation.runner \
+  --task-uuid <completed-research-task-uuid> \
+  --category competitor \
+  --top-k 5
+```
+
+命令会在数据库中写入 `rag_evaluation_runs` 和 `rag_evaluation_results`，并在终端输出本次运行的
+summary 与 case 级结果。输出只包含公开 UUID、标题、URL、来源类型、支撑强度、retriever 分数、
+评测相关性等级和 P0 指标，不包含内部自增 ID、完整 chunk 正文、API key 或原始异常堆栈。
+
 ## Agent 运行可观测性
 
 基础研究运行会保存 `agent_run_events` 阶段历史和耗时。LangSmith tracing 默认关闭；本地需要真实 trace 时，在 `backend/.env` 配置：

@@ -17,6 +17,8 @@ def isolate_external_service_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[No
     monkeypatch.setenv("LANGSMITH_WORKSPACE_ID", "")
     monkeypatch.setenv("TAVILY_API_KEY", "")
     monkeypatch.setenv("LLM_API_KEY", "")
+    monkeypatch.setenv("EMBEDDING_API_KEY", "")
+    monkeypatch.setenv("EMBEDDING_BASE_URL", "")
     get_settings.cache_clear()
 
     yield
