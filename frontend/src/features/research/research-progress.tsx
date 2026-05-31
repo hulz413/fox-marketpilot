@@ -57,6 +57,7 @@ const stageLabels: Record<ResearchTaskStage, string> = {
   generate_demand_insights: "生成需求洞察",
   generate_supply_candidates: "生成货源候选",
   generate_competitor_references: "生成竞品参考",
+  estimate_validation_budgets: "估算验证预算",
   completed: "基础推荐已生成",
   failed: "生成失败",
 };
@@ -110,6 +111,11 @@ const stageTimeline: Array<{
     key: "generate_competitor_references",
     label: "生成竞品参考",
     description: "整理类似产品参考、常见售价和差异化切入点。",
+  },
+  {
+    key: "estimate_validation_budgets",
+    label: "估算验证预算",
+    description: "粗略估算首批验证预算、毛利空间和待验证假设。",
   },
   {
     key: "completed",
@@ -356,7 +362,7 @@ function getProgressMessage(
   completedStageCount: number,
 ) {
   if (progress.status === "completed") {
-    return "基础商机推荐已经生成，可以继续查看商机列表、详情、货源候选、竞品参考和基础报告。";
+    return "基础商机推荐已经生成，可以继续查看商机列表、详情、货源候选、竞品参考、验证预算和基础报告。";
   }
 
   if (progress.status === "failed") {

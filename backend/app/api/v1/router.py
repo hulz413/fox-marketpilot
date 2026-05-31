@@ -8,6 +8,7 @@ from app.api.v1.routes import (
     research_tasks,
     sources,
     supply_candidates,
+    validation_budgets,
 )
 
 api_router = APIRouter()
@@ -18,3 +19,4 @@ api_router.include_router(sources.router, tags=["sources"])
 api_router.include_router(demand_insights.router, tags=["demand_insights"])
 api_router.include_router(supply_candidates.router, tags=["supply_candidates"])
 api_router.include_router(competitor_references.router, tags=["competitor_references"])
+api_router.include_router(validation_budgets.router, tags=["validation_budgets"])

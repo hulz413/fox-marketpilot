@@ -19,6 +19,7 @@ export type ResearchTaskStage =
   | "generate_demand_insights"
   | "generate_supply_candidates"
   | "generate_competitor_references"
+  | "estimate_validation_budgets"
   | "completed"
   | "failed";
 
@@ -220,6 +221,28 @@ export type OpportunityCompetitorReference = {
   reference_note: string;
   source_status: CompetitorReferenceSourceStatus;
   sources: CompetitorReferenceSourceSummary[];
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type ValidationBudgetEstimateStatus =
+  | "derived"
+  | "fallback"
+  | "insufficient_data";
+
+export type OpportunityValidationBudget = {
+  uuid: string;
+  research_task_uuid: string;
+  opportunity_uuid: string;
+  estimated_unit_cost: string;
+  estimated_selling_price: string;
+  rough_gross_margin: string;
+  first_batch_quantity: string;
+  first_batch_budget: string;
+  key_assumptions: string[];
+  calculation_note: string;
+  estimate_status: ValidationBudgetEstimateStatus;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -531,6 +554,40 @@ export async function fetchOpportunityCompetitorReferences(
 ): Promise<OpportunityCompetitorReference[]> {
   const response = await safeFetch(
     buildApiUrl(`/api/v1/opportunities/${opportunityUuid}/competitor-references`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchTaskValidationBudgets(
+  taskUuid: string,
+): Promise<OpportunityValidationBudget[]> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-tasks/${taskUuid}/validation-budgets`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchOpportunityValidationBudgets(
+  opportunityUuid: string,
+): Promise<OpportunityValidationBudget[]> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/opportunities/${opportunityUuid}/validation-budgets`),
     {
       cache: "no-store",
     },

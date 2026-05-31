@@ -25,6 +25,7 @@ from app.modules.research_tasks.models import ResearchTask
 from app.modules.research_tasks.schemas import ResearchTaskStage, ResearchTaskStatus
 from app.modules.sources import service as sources_service
 from app.modules.supply_candidates import service as supply_candidates_service
+from app.modules.validation_budgets import service as validation_budgets_service
 
 logger = logging.getLogger(__name__)
 
@@ -575,6 +576,69 @@ def generate_competitor_references(state: ResearchGraphState) -> dict[str, Any]:
         }
 
 
+def estimate_validation_budgets(state: ResearchGraphState) -> dict[str, Any]:
+    db = state["db"]
+    task = state["task"]
+    run_id = state.get("run_id")
+
+    try:
+        result = validation_budgets_service.collect_validation_budgets(db, task)
+        task.status = ResearchTaskStatus.COMPLETED.value
+        task.current_stage = ResearchTaskStage.COMPLETED.value
+        task.failure_reason = None
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+
+        metadata = {
+            "validation_budget_status": result.status,
+            "saved_validation_budget_count": result.saved_count,
+        }
+        logger.info(
+            "Estimated validation budgets",
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                **metadata,
+            },
+        )
+
+        return {
+            "task": task,
+            "stage_event": {
+                "status": "completed",
+                "metadata": metadata,
+            },
+        }
+    except Exception as exc:  # pragma: no cover - defensive non-blocking fallback
+        db.rollback()
+        task.status = ResearchTaskStatus.COMPLETED.value
+        task.current_stage = ResearchTaskStage.COMPLETED.value
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+        logger.warning(
+            "Validation budget estimation failed after opportunities were persisted",
+            exc_info=True,
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                "error_type": type(exc).__name__,
+            },
+        )
+        return {
+            "task": task,
+            "stage_event": {
+                "status": "failed",
+                "error_summary": "验证预算估算失败，基础商机结果已保留。",
+                "metadata": {
+                    "validation_budget_status": "failed",
+                    "error_type": type(exc).__name__,
+                },
+            },
+        }
+
+
 def update_task_stage(
     db: Session,
     task: ResearchTask,
@@ -721,6 +785,13 @@ def build_research_graph():
             generate_competitor_references,
         ),
     )
+    graph.add_node(
+        "estimate_validation_budgets",
+        observe_node(
+            ResearchTaskStage.ESTIMATE_VALIDATION_BUDGETS,
+            estimate_validation_budgets,
+        ),
+    )
     graph.add_edge(START, "normalize_intake")
     graph.add_edge("normalize_intake", "generate_opportunities")
     graph.add_edge("generate_opportunities", "validate_results")
@@ -729,6 +800,7 @@ def build_research_graph():
     graph.add_edge("collect_research_sources", "generate_demand_insights")
     graph.add_edge("generate_demand_insights", "generate_supply_candidates")
     graph.add_edge("generate_supply_candidates", "generate_competitor_references")
-    graph.add_edge("generate_competitor_references", END)
+    graph.add_edge("generate_competitor_references", "estimate_validation_budgets")
+    graph.add_edge("estimate_validation_budgets", END)
 
     return graph.compile()

@@ -23,6 +23,7 @@ import {
 import { OpportunityCompetitorReferencePanel } from "@/features/research/competitor-references";
 import { OpportunityDemandInsightPanel } from "@/features/research/demand-insights";
 import { OpportunitySupplyCandidatePanel } from "@/features/research/supply-candidates";
+import { OpportunityValidationBudgetPanel } from "@/features/research/validation-budgets";
 
 const riskLabels: Record<OpportunityRiskLevel, string> = {
   low: "低",
@@ -147,6 +148,7 @@ function OpportunityDetailContent({ opportunity }: { opportunity: Opportunity })
       <OpportunityDemandInsightPanel opportunityUuid={opportunity.uuid} />
       <OpportunitySupplyCandidatePanel opportunityUuid={opportunity.uuid} />
       <OpportunityCompetitorReferencePanel opportunityUuid={opportunity.uuid} />
+      <OpportunityValidationBudgetPanel opportunityUuid={opportunity.uuid} />
       <OpportunitySourceInsights opportunityUuid={opportunity.uuid} />
     </div>
   );

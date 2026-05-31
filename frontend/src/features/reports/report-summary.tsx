@@ -31,6 +31,7 @@ import { TaskCompetitorReferenceSummary } from "@/features/research/competitor-r
 import { TaskDemandInsightSummary } from "@/features/research/demand-insights";
 import { TaskSourceInsights } from "@/features/research/source-insights";
 import { TaskSupplyCandidateSummary } from "@/features/research/supply-candidates";
+import { TaskValidationBudgetSummary } from "@/features/research/validation-budgets";
 
 const riskLabels: Record<OpportunityRiskLevel, string> = {
   low: "低",
@@ -149,6 +150,8 @@ function ReportContent({
         opportunities={opportunities}
         taskUuid={taskUuid}
       />
+
+      <TaskValidationBudgetSummary opportunities={opportunities} taskUuid={taskUuid} />
 
       <TaskSourceInsights taskUuid={taskUuid} />
 

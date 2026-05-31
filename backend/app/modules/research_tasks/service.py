@@ -43,6 +43,7 @@ FAILURE_STAGE_LABELS = {
     ResearchTaskStage.GENERATE_DEMAND_INSIGHTS.value: "需求洞察生成",
     ResearchTaskStage.GENERATE_SUPPLY_CANDIDATES.value: "货源候选生成",
     ResearchTaskStage.GENERATE_COMPETITOR_REFERENCES.value: "竞品参考生成",
+    ResearchTaskStage.ESTIMATE_VALIDATION_BUDGETS.value: "验证预算估算",
 }
 
 
@@ -277,6 +278,9 @@ def make_failure_reason(stage: str, exc: Exception) -> str:
 
     if stage == ResearchTaskStage.GENERATE_COMPETITOR_REFERENCES.value:
         return "基础商机已生成，但竞品参考生成失败；结果已保留，可稍后重试。"
+
+    if stage == ResearchTaskStage.ESTIMATE_VALIDATION_BUDGETS.value:
+        return "基础商机已生成，但验证预算估算失败；结果已保留，可稍后重试。"
 
     if stage == ResearchTaskStage.VALIDATE_RESULTS.value:
         return "基础商机生成失败：结果校验失败，请稍后重试。"

@@ -64,10 +64,12 @@ test("result pages include task context and source panels", () => {
   assert.match(report, /TaskDemandInsightSummary/);
   assert.match(report, /TaskSupplyCandidateSummary/);
   assert.match(report, /TaskCompetitorReferenceSummary/);
+  assert.match(report, /TaskValidationBudgetSummary/);
   assert.match(detail, /OpportunitySourceInsights/);
   assert.match(detail, /OpportunityDemandInsightPanel/);
   assert.match(detail, /OpportunitySupplyCandidatePanel/);
   assert.match(detail, /OpportunityCompetitorReferencePanel/);
+  assert.match(detail, /OpportunityValidationBudgetPanel/);
   assert.match(shell, /TaskContextNavigation/);
 });
 
@@ -100,6 +102,18 @@ test("competitor references keep cautious copy and non-blocking states", () => {
   assert.match(source, /待确认/);
   assert.match(source, /待验证/);
   assert.match(source, /竞品参考暂不可用/);
+});
+
+test("validation budgets keep cautious copy and non-blocking states", () => {
+  const source = readSource("src/features/research/validation-budgets.tsx");
+  const progress = readSource("src/features/research/research-progress.tsx");
+
+  assert.match(source, /验证预算/);
+  assert.match(source, /粗略估算/);
+  assert.match(source, /待验证假设/);
+  assert.match(source, /验证预算暂不可用/);
+  assert.match(progress, /estimate_validation_budgets/);
+  assert.match(progress, /估算验证预算/);
 });
 
 test("interactive controls use pointer cursor while disabled controls do not", () => {
