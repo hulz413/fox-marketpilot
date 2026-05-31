@@ -22,8 +22,34 @@ ruff check .
 3 个中文待验证商机，方便本地开发和自动化测试。
 
 生产环境应配置真实 OpenAI-compatible LLM 凭证；缺少 `LLM_API_KEY` 时不应静默使用
-fallback。当前基础研究运行不做外部前置调研，不调用 Tavily、Playwright、RAG、向量检索
-或来源收集模块。
+fallback。当前基础商机生成阶段不做外部前置调研，不调用 Tavily、Playwright、RAG 或向量检索；
+基础商机保存后会尝试收集公开来源、建立任务内 RAG 证据索引，并继续生成需求、货源、竞品、
+验证预算、风险和行动计划等增强结果。
+
+## RAG 证据检索
+
+`introduce-rag-retrieval` 将 RAG 限定为任务内证据检索：系统只从当前任务的
+`research_sources` 派生 `rag_evidence_chunks`，默认只在当前任务和当前商机范围内召回证据，
+不会建设跨任务全局知识库，也不会把最终报告或模型生成结论反灌进 RAG。
+
+本地或测试环境未配置 embedding provider 时，系统使用确定性 embedding fallback，自动化测试不
+依赖外部 embedding 服务。连接 Docker Postgres 时，migration 会启用 pgvector，并把 embedding
+写入 `rag_evidence_chunks.embedding`。
+
+线上演示需要确认：
+
+```bash
+RAG_RETRIEVAL_ENABLED=true
+EMBEDDING_API_KEY=<your-embedding-api-key>
+EMBEDDING_MODEL=text-embedding-3-small
+EMBEDDING_DIMENSION=1536
+LANGSMITH_TRACING=true
+```
+
+完成一次研究后，在进度页或任务列表打开 LangSmith trace，确认同一 run 下可以看到
+`index_rag_evidence` 阶段，以及 `generate_competitor_references` 阶段 metadata 中的
+`retrieval_query_count`、`retrieval_result_count`、`retrieval_source_types` 和
+`retrieval_scope`。
 
 ## Agent 运行可观测性
 

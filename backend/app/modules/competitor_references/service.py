@@ -30,6 +30,8 @@ from app.modules.competitor_references.schemas import (
 from app.modules.demand_insights import service as demand_insights_service
 from app.modules.opportunities import service as opportunities_service
 from app.modules.opportunities.models import Opportunity
+from app.modules.rag_retrieval import service as rag_retrieval_service
+from app.modules.rag_retrieval.schemas import RagRetrievalEvidence
 from app.modules.research_tasks.models import ResearchTask
 from app.modules.sources import service as sources_service
 from app.modules.sources.models import ResearchSource
@@ -46,11 +48,29 @@ class CompetitorReferenceCollectionResult:
     status: str
     saved_count: int
     source_link_count: int
+    retrieval_query_count: int = 0
+    retrieval_result_count: int = 0
+    retrieval_fallback_count: int = 0
+    retrieval_top_k: int = MAX_SOURCES_PER_OPPORTUNITY
+    retrieval_source_types: tuple[str, ...] = (
+        ResearchSourceType.COMPETITOR.value,
+        ResearchSourceType.GENERAL.value,
+    )
+    retrieval_scope: str = "task_scoped"
+    retrieval_queries: tuple[str, ...] = ()
     error_summary: Optional[str] = None
 
 
 class CompetitorReferenceGenerationError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class SelectedCompetitorEvidence:
+    source: ResearchSource
+    evidence_text: str
+    relevance_score: Optional[float] = None
+    retrieval_status: str = "source_selection"
 
 
 class CompetitorReferenceGenerator(Protocol):
@@ -251,10 +271,13 @@ def collect_competitor_references(
         )
 
     task_sources = sources_service.list_task_sources(db, task)
-    selected_sources_by_opportunity = {
-        opportunity.id: select_sources_for_opportunity(opportunity, task_sources)
-        for opportunity in opportunities
-    }
+    (
+        selected_evidence_by_opportunity,
+        retrieval_query_count,
+        retrieval_result_count,
+        retrieval_fallback_count,
+        retrieval_queries,
+    ) = build_evidence_by_opportunity(db, task, opportunities, task_sources)
     demand_summary_by_opportunity_id = {
         insight.opportunity_id: insight.summary
         for insight in demand_insights_service.list_task_demand_insights(db, task)
@@ -269,7 +292,7 @@ def collect_competitor_references(
         build_generation_context(
             task,
             opportunities,
-            selected_sources_by_opportunity,
+            selected_evidence_by_opportunity,
             demand_summary_by_opportunity_id,
             supply_summaries_by_opportunity_id,
         ),
@@ -290,7 +313,7 @@ def collect_competitor_references(
     uses_fallback = isinstance(active_generator, DeterministicCompetitorReferenceGenerator)
     reference_inputs: list[CompetitorReferenceCreate] = []
     for opportunity in opportunities:
-        selected_sources = selected_sources_by_opportunity[opportunity.id]
+        selected_evidence = selected_evidence_by_opportunity[opportunity.id]
         generated_items = sorted(
             generated_by_uuid[str(opportunity.uuid)],
             key=lambda reference: reference.rank,
@@ -299,7 +322,7 @@ def collect_competitor_references(
             build_reference_create(
                 opportunity,
                 generated,
-                selected_sources,
+                selected_evidence,
                 uses_fallback=uses_fallback,
             )
             for generated in generated_items
@@ -311,6 +334,10 @@ def collect_competitor_references(
         status="fallback" if uses_fallback else "completed",
         saved_count=len(saved),
         source_link_count=sum(len(item.source_links) for item in reference_inputs),
+        retrieval_query_count=retrieval_query_count,
+        retrieval_result_count=retrieval_result_count,
+        retrieval_fallback_count=retrieval_fallback_count,
+        retrieval_queries=tuple(retrieval_queries[:5]),
     )
 
 
@@ -388,13 +415,101 @@ def select_sources_for_opportunity(
     ][:max_sources]
 
 
+def build_evidence_by_opportunity(
+    db: Session,
+    task: ResearchTask,
+    opportunities: list[Opportunity],
+    task_sources: list[ResearchSource],
+) -> tuple[dict[int, list[SelectedCompetitorEvidence]], int, int, int, list[str]]:
+    evidence_by_opportunity: dict[int, list[SelectedCompetitorEvidence]] = {}
+    source_by_id = {source.id: source for source in task_sources}
+    retrieval_query_count = 0
+    retrieval_result_count = 0
+    retrieval_fallback_count = 0
+    retrieval_queries: list[str] = []
+
+    for opportunity in opportunities:
+        query = build_competitor_retrieval_query(task, opportunity)
+        retrieval_queries.append(query)
+        retrieval_query_count += 1
+        retrieval_result = rag_retrieval_service.retrieve_evidence(
+            db,
+            task,
+            query=query,
+            opportunity=opportunity,
+            source_types=[
+                ResearchSourceType.COMPETITOR,
+                ResearchSourceType.GENERAL,
+            ],
+            top_k=MAX_SOURCES_PER_OPPORTUNITY,
+        )
+
+        retrieval_evidence = [
+            build_selected_evidence_from_retrieval(item, source_by_id)
+            for item in retrieval_result.evidence
+            if item.research_source_id in source_by_id
+        ]
+        retrieval_evidence = [
+            item for item in retrieval_evidence if item is not None
+        ]
+
+        if retrieval_evidence:
+            evidence_by_opportunity[opportunity.id] = retrieval_evidence
+            retrieval_result_count += len(retrieval_evidence)
+            continue
+
+        selected_sources = select_sources_for_opportunity(opportunity, task_sources)
+        evidence_by_opportunity[opportunity.id] = [
+            SelectedCompetitorEvidence(
+                source=source,
+                evidence_text=source.summary,
+                retrieval_status=retrieval_result.status,
+            )
+            for source in selected_sources
+        ]
+        retrieval_fallback_count += 1
+
+    return (
+        evidence_by_opportunity,
+        retrieval_query_count,
+        retrieval_result_count,
+        retrieval_fallback_count,
+        retrieval_queries,
+    )
+
+
+def build_selected_evidence_from_retrieval(
+    evidence: RagRetrievalEvidence,
+    source_by_id: dict[int, ResearchSource],
+) -> Optional[SelectedCompetitorEvidence]:
+    source = source_by_id.get(evidence.research_source_id)
+    if source is None:
+        return None
+
+    return SelectedCompetitorEvidence(
+        source=source,
+        evidence_text=evidence.chunk_text,
+        relevance_score=evidence.relevance_score,
+        retrieval_status="retrieved",
+    )
+
+
+def build_competitor_retrieval_query(task: ResearchTask, opportunity: Opportunity) -> str:
+    channel = first_or_default(task.target_channels, "中文内容平台")
+    return (
+        f"{opportunity.name} {opportunity.product_direction} 类似产品 "
+        f"常见售价 卖点 同质化 差异化 {channel}"
+    )
+
+
 def build_reference_create(
     opportunity: Opportunity,
     generated: CompetitorReferenceGenerated,
-    selected_sources: list[ResearchSource],
+    selected_evidence: list[SelectedCompetitorEvidence],
     *,
     uses_fallback: bool,
 ) -> CompetitorReferenceCreate:
+    selected_sources = [item.source for item in selected_evidence]
     source_status = (
         CompetitorReferenceSourceStatus.LINKED
         if selected_sources
@@ -486,7 +601,7 @@ def build_supply_summaries_by_opportunity_id(
 def build_generation_context(
     task: ResearchTask,
     opportunities: list[Opportunity],
-    sources_by_opportunity: dict[int, list[ResearchSource]],
+    evidence_by_opportunity: dict[int, list[SelectedCompetitorEvidence]],
     demand_summary_by_opportunity_id: dict[int, str],
     supply_summaries_by_opportunity_id: dict[int, list[str]],
 ) -> dict[str, Any]:
@@ -524,12 +639,21 @@ def build_generation_context(
                 )[:3],
                 "sources": [
                     {
-                        "title": source.title,
-                        "summary": clip_text(source.summary, MAX_SOURCE_TEXT_LENGTH),
-                        "linked_claim": source.linked_claim,
-                        "support_level": source.support_level,
+                        "title": evidence.source.title,
+                        "summary": clip_text(
+                            evidence.source.summary,
+                            MAX_SOURCE_TEXT_LENGTH,
+                        ),
+                        "linked_claim": evidence.source.linked_claim,
+                        "support_level": evidence.source.support_level,
+                        "evidence_text": clip_text(
+                            evidence.evidence_text,
+                            MAX_SOURCE_TEXT_LENGTH,
+                        ),
+                        "relevance_score": evidence.relevance_score,
+                        "retrieval_status": evidence.retrieval_status,
                     }
-                    for source in sources_by_opportunity[opportunity.id]
+                    for evidence in evidence_by_opportunity[opportunity.id]
                 ],
             }
             for opportunity in opportunities
@@ -550,6 +674,7 @@ def build_generation_prompt(context: dict[str, Any]) -> str:
         f"{json.dumps(context['opportunities'], ensure_ascii=False)}\n\n"
         "要求：中文输出；每个商机至少 2 个参考且 rank 从 1 开始；"
         "覆盖类似产品示例、常见售价区间、常见卖点、同质化程度和差异化切入点；"
+        "如果存在 evidence_text 和 relevance_score，优先把它们作为当前任务内召回的公开线索；"
         "只表达类似产品参考、公开线索、可能、待确认、待验证；"
         "不得使用“竞品已全面核验”“售价已确认”“销量已确认”“市场已证明”等结论。"
     )

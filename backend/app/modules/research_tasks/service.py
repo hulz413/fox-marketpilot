@@ -40,6 +40,7 @@ FAILURE_STAGE_LABELS = {
     ResearchTaskStage.VALIDATE_RESULTS.value: "结果校验",
     ResearchTaskStage.PERSIST_RESULTS.value: "结果保存",
     ResearchTaskStage.COLLECT_RESEARCH_SOURCES.value: "来源收集",
+    ResearchTaskStage.INDEX_RAG_EVIDENCE.value: "证据索引",
     ResearchTaskStage.GENERATE_DEMAND_INSIGHTS.value: "需求洞察生成",
     ResearchTaskStage.GENERATE_SUPPLY_CANDIDATES.value: "货源候选生成",
     ResearchTaskStage.GENERATE_COMPETITOR_REFERENCES.value: "竞品参考生成",
@@ -271,6 +272,9 @@ def make_failure_reason(stage: str, exc: Exception) -> str:
 
     if stage == ResearchTaskStage.COLLECT_RESEARCH_SOURCES.value:
         return "基础商机已生成，但来源收集失败；结果已保留，可稍后重试。"
+
+    if stage == ResearchTaskStage.INDEX_RAG_EVIDENCE.value:
+        return "基础商机已生成，但证据索引暂不可用；结果已保留，可稍后重试。"
 
     if stage == ResearchTaskStage.GENERATE_DEMAND_INSIGHTS.value:
         return "基础商机已生成，但需求洞察生成失败；结果已保留，可稍后重试。"

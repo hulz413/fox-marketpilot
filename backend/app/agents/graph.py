@@ -23,6 +23,7 @@ from app.modules.opportunities.schemas import (
     OpportunityGenerated,
     OpportunityGenerationResult,
 )
+from app.modules.rag_retrieval import service as rag_retrieval_service
 from app.modules.research_tasks.models import ResearchTask
 from app.modules.research_tasks.schemas import ResearchTaskStage, ResearchTaskStatus
 from app.modules.sources import service as sources_service
@@ -386,6 +387,86 @@ def collect_research_sources(state: ResearchGraphState) -> dict[str, Any]:
         }
 
 
+def index_rag_evidence(state: ResearchGraphState) -> dict[str, Any]:
+    db = state["db"]
+    task = state["task"]
+    run_id = state.get("run_id")
+
+    try:
+        result = rag_retrieval_service.index_task_evidence(db, task)
+        task.status = ResearchTaskStatus.COMPLETED.value
+        task.current_stage = ResearchTaskStage.COMPLETED.value
+        task.failure_reason = None
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+
+        metadata = {
+            "rag_index_status": result.status,
+            "indexed_chunk_count": result.indexed_count,
+            "source_count": result.source_count,
+        }
+        if result.skipped_reason:
+            metadata["skipped_reason"] = result.skipped_reason
+        if result.error_summary:
+            metadata["error_summary"] = result.error_summary
+
+        logger.info(
+            "Indexed RAG evidence",
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                **metadata,
+            },
+        )
+
+        if result.status == "failed":
+            return {
+                "task": task,
+                "stage_event": {
+                    "status": "failed",
+                    "error_summary": result.error_summary
+                    or "RAG 证据索引失败，基础商机结果已保留。",
+                    "metadata": metadata,
+                },
+            }
+
+        return {
+            "task": task,
+            "stage_event": {
+                "status": "completed",
+                "metadata": metadata,
+            },
+        }
+    except Exception as exc:  # pragma: no cover - defensive non-blocking fallback
+        db.rollback()
+        task.status = ResearchTaskStatus.COMPLETED.value
+        task.current_stage = ResearchTaskStage.COMPLETED.value
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+        logger.warning(
+            "RAG evidence indexing failed after sources were collected",
+            exc_info=True,
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                "error_type": type(exc).__name__,
+            },
+        )
+        return {
+            "task": task,
+            "stage_event": {
+                "status": "failed",
+                "error_summary": "RAG 证据索引失败，基础商机结果已保留。",
+                "metadata": {
+                    "rag_index_status": "failed",
+                    "error_type": type(exc).__name__,
+                },
+            },
+        }
+
+
 def generate_demand_insights(state: ResearchGraphState) -> dict[str, Any]:
     db = state["db"]
     task = state["task"]
@@ -532,6 +613,13 @@ def generate_competitor_references(state: ResearchGraphState) -> dict[str, Any]:
             "competitor_reference_status": result.status,
             "saved_competitor_reference_count": result.saved_count,
             "source_link_count": result.source_link_count,
+            "retrieval_query_count": result.retrieval_query_count,
+            "retrieval_result_count": result.retrieval_result_count,
+            "retrieval_fallback_count": result.retrieval_fallback_count,
+            "retrieval_top_k": result.retrieval_top_k,
+            "retrieval_source_types": list(result.retrieval_source_types),
+            "retrieval_scope": result.retrieval_scope,
+            "retrieval_queries": list(result.retrieval_queries),
         }
         logger.info(
             "Generated competitor references",
@@ -888,6 +976,13 @@ def build_research_graph():
         ),
     )
     graph.add_node(
+        "index_rag_evidence",
+        observe_node(
+            ResearchTaskStage.INDEX_RAG_EVIDENCE,
+            index_rag_evidence,
+        ),
+    )
+    graph.add_node(
         "generate_demand_insights",
         observe_node(
             ResearchTaskStage.GENERATE_DEMAND_INSIGHTS,
@@ -934,7 +1029,8 @@ def build_research_graph():
     graph.add_edge("generate_opportunities", "validate_results")
     graph.add_edge("validate_results", "persist_results")
     graph.add_edge("persist_results", "collect_research_sources")
-    graph.add_edge("collect_research_sources", "generate_demand_insights")
+    graph.add_edge("collect_research_sources", "index_rag_evidence")
+    graph.add_edge("index_rag_evidence", "generate_demand_insights")
     graph.add_edge("generate_demand_insights", "generate_supply_candidates")
     graph.add_edge("generate_supply_candidates", "generate_competitor_references")
     graph.add_edge("generate_competitor_references", "estimate_validation_budgets")

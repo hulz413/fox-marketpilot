@@ -54,6 +54,7 @@ const stageLabels: Record<ResearchTaskStage, string> = {
   validate_results: "校验推荐结果",
   persist_results: "保存研究结果",
   collect_research_sources: "收集公开来源线索",
+  index_rag_evidence: "整理公开来源证据",
   generate_demand_insights: "生成需求洞察",
   generate_supply_candidates: "生成货源候选",
   generate_competitor_references: "生成竞品参考",
@@ -98,6 +99,11 @@ const stageTimeline: Array<{
     key: "collect_research_sources",
     label: "收集公开来源线索",
     description: "补充公开来源线索，作为后续判断的初步参考。",
+  },
+  {
+    key: "index_rag_evidence",
+    label: "整理公开来源证据",
+    description: "将已收集公开线索整理为后续分析可检索的待验证证据。",
   },
   {
     key: "generate_demand_insights",

@@ -23,6 +23,7 @@ from app.modules.competitor_references import service as competitor_references_s
 from app.modules.competitor_references.models import CompetitorReference
 from app.modules.competitor_references.service import CompetitorReferenceGenerationError
 from app.modules.opportunities.models import Opportunity
+from app.modules.rag_retrieval import service as rag_retrieval_service
 from app.modules.sources.models import ResearchSource
 
 
@@ -210,7 +211,12 @@ def test_competitor_references_can_link_competitor_sources(
             )
         )
         db.commit()
-        competitor_references_service.collect_competitor_references(db, task)
+        rag_retrieval_service.index_task_evidence(db, task)
+        result = competitor_references_service.collect_competitor_references(db, task)
+
+        assert result.retrieval_query_count == 3
+        assert result.retrieval_result_count >= 1
+        assert result.retrieval_fallback_count < 3
 
     references = test_client.get(
         f"/api/v1/research-tasks/{created['uuid']}/competitor-references"

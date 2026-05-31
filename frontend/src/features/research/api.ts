@@ -16,6 +16,7 @@ export type ResearchTaskStage =
   | "validate_results"
   | "persist_results"
   | "collect_research_sources"
+  | "index_rag_evidence"
   | "generate_demand_insights"
   | "generate_supply_candidates"
   | "generate_competitor_references"

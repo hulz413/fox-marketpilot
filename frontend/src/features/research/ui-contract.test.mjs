@@ -120,6 +120,20 @@ test("validation budgets keep cautious copy and non-blocking states", () => {
   assert.match(progress, /估算验证预算/);
 });
 
+test("research progress includes RAG evidence indexing stage", () => {
+  const progress = readSource("src/features/research/research-progress.tsx");
+  const api = readSource("src/features/research/api.ts");
+  const taskList = readSource("src/features/research/research-task-list.tsx");
+  const history = readSource("src/features/research/research-history-list.tsx");
+
+  assert.match(api, /index_rag_evidence/);
+  assert.match(progress, /index_rag_evidence/);
+  assert.match(progress, /整理公开来源证据/);
+  assert.match(progress, /待验证证据/);
+  assert.match(taskList, /整理公开来源证据/);
+  assert.match(history, /整理公开来源证据/);
+});
+
 test("opportunity risks keep cautious copy and non-blocking states", () => {
   const source = readSource("src/features/research/opportunity-risks.tsx");
   const progress = readSource("src/features/research/research-progress.tsx");

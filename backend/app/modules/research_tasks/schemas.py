@@ -26,6 +26,7 @@ class ResearchTaskStage(str, Enum):
     VALIDATE_RESULTS = "validate_results"
     PERSIST_RESULTS = "persist_results"
     COLLECT_RESEARCH_SOURCES = "collect_research_sources"
+    INDEX_RAG_EVIDENCE = "index_rag_evidence"
     GENERATE_DEMAND_INSIGHTS = "generate_demand_insights"
     GENERATE_SUPPLY_CANDIDATES = "generate_supply_candidates"
     GENERATE_COMPETITOR_REFERENCES = "generate_competitor_references"
