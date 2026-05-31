@@ -17,6 +17,7 @@ from app.modules.agent_runs import service as agent_run_events_service
 from app.modules.competitor_references import service as competitor_references_service
 from app.modules.demand_insights import service as demand_insights_service
 from app.modules.opportunities import service as opportunities_service
+from app.modules.opportunity_risks import service as opportunity_risks_service
 from app.modules.opportunities.schemas import (
     OpportunityGenerated,
     OpportunityGenerationResult,
@@ -183,12 +184,12 @@ def parse_json_content(content: str) -> dict[str, Any]:
 def build_generation_prompt(context: dict[str, Any]) -> str:
     return (
         "请生成 3-5 个待验证商机草案，JSON schema 如下：\n"
-        "{\"opportunities\":[{\"rank\":1,\"name\":\"...\","
-        "\"product_direction\":\"...\",\"target_audience\":\"...\","
-        "\"recommendation_reason\":\"...\",\"suitable_channels\":[\"...\"],"
-        "\"price_band\":\"...\",\"rough_margin\":\"...\","
-        "\"risk_level\":\"low|medium|high\",\"priority_label\":\"...\","
-        "\"next_step_summary\":\"...\"}]}\n\n"
+        '{"opportunities":[{"rank":1,"name":"...",'
+        '"product_direction":"...","target_audience":"...",'
+        '"recommendation_reason":"...","suitable_channels":["..."],'
+        '"price_band":"...","rough_margin":"...",'
+        '"risk_level":"low|medium|high","priority_label":"...",'
+        '"next_step_summary":"..."}]}\n\n'
         f"研究标题：{context['title']}\n"
         f"自然语言需求：{context['brief']}\n"
         f"预算：{context.get('budget') or '未填写'}\n"
@@ -639,6 +640,69 @@ def estimate_validation_budgets(state: ResearchGraphState) -> dict[str, Any]:
         }
 
 
+def review_opportunity_risks(state: ResearchGraphState) -> dict[str, Any]:
+    db = state["db"]
+    task = state["task"]
+    run_id = state.get("run_id")
+
+    try:
+        result = opportunity_risks_service.collect_opportunity_risks(db, task)
+        task.status = ResearchTaskStatus.COMPLETED.value
+        task.current_stage = ResearchTaskStage.COMPLETED.value
+        task.failure_reason = None
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+
+        metadata = {
+            "opportunity_risk_status": result.status,
+            "saved_opportunity_risk_count": result.saved_count,
+        }
+        logger.info(
+            "Reviewed opportunity risks",
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                **metadata,
+            },
+        )
+
+        return {
+            "task": task,
+            "stage_event": {
+                "status": "completed",
+                "metadata": metadata,
+            },
+        }
+    except Exception as exc:  # pragma: no cover - defensive non-blocking fallback
+        db.rollback()
+        task.status = ResearchTaskStatus.COMPLETED.value
+        task.current_stage = ResearchTaskStage.COMPLETED.value
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+        logger.warning(
+            "Opportunity risk review failed after opportunities were persisted",
+            exc_info=True,
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                "error_type": type(exc).__name__,
+            },
+        )
+        return {
+            "task": task,
+            "stage_event": {
+                "status": "failed",
+                "error_summary": "风险复核失败，基础商机结果已保留。",
+                "metadata": {
+                    "opportunity_risk_status": "failed",
+                    "error_type": type(exc).__name__,
+                },
+            },
+        }
+
+
 def update_task_stage(
     db: Session,
     task: ResearchTask,
@@ -689,18 +753,13 @@ def observe_node(stage: ResearchTaskStage, node):
                 result = node(state)
 
             stage_event = (
-                result.pop("stage_event", None)
-                if isinstance(result, dict)
-                else None
+                result.pop("stage_event", None) if isinstance(result, dict) else None
             )
             completion_metadata = dict(metadata)
             if isinstance(stage_event, dict):
                 completion_metadata.update(stage_event.get("metadata") or {})
 
-            if (
-                isinstance(stage_event, dict)
-                and stage_event.get("status") == "failed"
-            ):
+            if isinstance(stage_event, dict) and stage_event.get("status") == "failed":
                 agent_run_events_service.fail_stage(
                     db,
                     task,
@@ -792,6 +851,13 @@ def build_research_graph():
             estimate_validation_budgets,
         ),
     )
+    graph.add_node(
+        "review_opportunity_risks",
+        observe_node(
+            ResearchTaskStage.REVIEW_OPPORTUNITY_RISKS,
+            review_opportunity_risks,
+        ),
+    )
     graph.add_edge(START, "normalize_intake")
     graph.add_edge("normalize_intake", "generate_opportunities")
     graph.add_edge("generate_opportunities", "validate_results")
@@ -801,6 +867,7 @@ def build_research_graph():
     graph.add_edge("generate_demand_insights", "generate_supply_candidates")
     graph.add_edge("generate_supply_candidates", "generate_competitor_references")
     graph.add_edge("generate_competitor_references", "estimate_validation_budgets")
-    graph.add_edge("estimate_validation_budgets", END)
+    graph.add_edge("estimate_validation_budgets", "review_opportunity_risks")
+    graph.add_edge("review_opportunity_risks", END)
 
     return graph.compile()

@@ -65,6 +65,7 @@ const stageLabels: Record<ResearchTask["current_stage"], string> = {
   generate_supply_candidates: "生成货源候选",
   generate_competitor_references: "生成竞品参考",
   estimate_validation_budgets: "估算验证预算",
+  review_opportunity_risks: "复核商机风险",
   completed: "基础推荐已生成",
   failed: "生成失败",
 };

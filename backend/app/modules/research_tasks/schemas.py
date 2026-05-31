@@ -30,6 +30,7 @@ class ResearchTaskStage(str, Enum):
     GENERATE_SUPPLY_CANDIDATES = "generate_supply_candidates"
     GENERATE_COMPETITOR_REFERENCES = "generate_competitor_references"
     ESTIMATE_VALIDATION_BUDGETS = "estimate_validation_budgets"
+    REVIEW_OPPORTUNITY_RISKS = "review_opportunity_risks"
     COMPLETED = "completed"
     FAILED = "failed"
 

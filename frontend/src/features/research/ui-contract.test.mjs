@@ -65,11 +65,13 @@ test("result pages include task context and source panels", () => {
   assert.match(report, /TaskSupplyCandidateSummary/);
   assert.match(report, /TaskCompetitorReferenceSummary/);
   assert.match(report, /TaskValidationBudgetSummary/);
+  assert.match(report, /TaskOpportunityRiskSummary/);
   assert.match(detail, /OpportunitySourceInsights/);
   assert.match(detail, /OpportunityDemandInsightPanel/);
   assert.match(detail, /OpportunitySupplyCandidatePanel/);
   assert.match(detail, /OpportunityCompetitorReferencePanel/);
   assert.match(detail, /OpportunityValidationBudgetPanel/);
+  assert.match(detail, /OpportunityRiskPanel/);
   assert.match(shell, /TaskContextNavigation/);
 });
 
@@ -114,6 +116,19 @@ test("validation budgets keep cautious copy and non-blocking states", () => {
   assert.match(source, /验证预算暂不可用/);
   assert.match(progress, /estimate_validation_budgets/);
   assert.match(progress, /估算验证预算/);
+});
+
+test("opportunity risks keep cautious copy and non-blocking states", () => {
+  const source = readSource("src/features/research/opportunity-risks.tsx");
+  const progress = readSource("src/features/research/research-progress.tsx");
+
+  assert.match(source, /风险复核/);
+  assert.match(source, /待验证/);
+  assert.match(source, /需要确认/);
+  assert.match(source, /风险复核暂不可用/);
+  assert.match(source, /合规、供应商履约、库存或平台规则已经完成核验/);
+  assert.match(progress, /review_opportunity_risks/);
+  assert.match(progress, /复核商机风险/);
 });
 
 test("interactive controls use pointer cursor while disabled controls do not", () => {

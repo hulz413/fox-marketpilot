@@ -29,6 +29,7 @@ import {
 import { TaskContextNavigation } from "@/features/product-skeleton/components";
 import { TaskCompetitorReferenceSummary } from "@/features/research/competitor-references";
 import { TaskDemandInsightSummary } from "@/features/research/demand-insights";
+import { TaskOpportunityRiskSummary } from "@/features/research/opportunity-risks";
 import { TaskSourceInsights } from "@/features/research/source-insights";
 import { TaskSupplyCandidateSummary } from "@/features/research/supply-candidates";
 import { TaskValidationBudgetSummary } from "@/features/research/validation-budgets";
@@ -152,6 +153,8 @@ function ReportContent({
       />
 
       <TaskValidationBudgetSummary opportunities={opportunities} taskUuid={taskUuid} />
+
+      <TaskOpportunityRiskSummary opportunities={opportunities} taskUuid={taskUuid} />
 
       <TaskSourceInsights taskUuid={taskUuid} />
 

@@ -20,6 +20,7 @@ export type ResearchTaskStage =
   | "generate_supply_candidates"
   | "generate_competitor_references"
   | "estimate_validation_budgets"
+  | "review_opportunity_risks"
   | "completed"
   | "failed";
 
@@ -243,6 +244,32 @@ export type OpportunityValidationBudget = {
   key_assumptions: string[];
   calculation_note: string;
   estimate_status: ValidationBudgetEstimateStatus;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type OpportunityRiskReviewStatus =
+  | "derived"
+  | "fallback"
+  | "insufficient_data";
+
+export type OpportunityRiskReview = {
+  uuid: string;
+  research_task_uuid: string;
+  opportunity_uuid: string;
+  overall_risk_level: OpportunityRiskLevel;
+  risk_summary: string;
+  quality_risk: string;
+  fulfillment_risk: string;
+  after_sales_risk: string;
+  compliance_risk: string;
+  inventory_risk: string;
+  competition_risk: string;
+  platform_risk: string;
+  risk_triggers: string[];
+  mitigation_suggestions: string[];
+  review_status: OpportunityRiskReviewStatus;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -588,6 +615,40 @@ export async function fetchOpportunityValidationBudgets(
 ): Promise<OpportunityValidationBudget[]> {
   const response = await safeFetch(
     buildApiUrl(`/api/v1/opportunities/${opportunityUuid}/validation-budgets`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchTaskOpportunityRisks(
+  taskUuid: string,
+): Promise<OpportunityRiskReview[]> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-tasks/${taskUuid}/opportunity-risks`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchOpportunityRisks(
+  opportunityUuid: string,
+): Promise<OpportunityRiskReview[]> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/opportunities/${opportunityUuid}/opportunity-risks`),
     {
       cache: "no-store",
     },

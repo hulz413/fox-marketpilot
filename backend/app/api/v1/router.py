@@ -5,6 +5,7 @@ from app.api.v1.routes import (
     demand_insights,
     health,
     opportunities,
+    opportunity_risks,
     research_tasks,
     sources,
     supply_candidates,
@@ -20,3 +21,4 @@ api_router.include_router(demand_insights.router, tags=["demand_insights"])
 api_router.include_router(supply_candidates.router, tags=["supply_candidates"])
 api_router.include_router(competitor_references.router, tags=["competitor_references"])
 api_router.include_router(validation_budgets.router, tags=["validation_budgets"])
+api_router.include_router(opportunity_risks.router, tags=["opportunity_risks"])

@@ -174,17 +174,23 @@ def test_execute_research_run_generates_opportunities(
     assert all("uuid" in item for item in opportunities)
     assert all("source" not in item for item in opportunities)
 
-    detail_response = test_client.get(f"/api/v1/opportunities/{opportunities[0]['uuid']}")
+    detail_response = test_client.get(
+        f"/api/v1/opportunities/{opportunities[0]['uuid']}"
+    )
 
     assert detail_response.status_code == 200
     assert detail_response.json()["research_task_uuid"] == created["uuid"]
 
     with session_factory() as db:
-        events = db.execute(
-            select(AgentRunEvent)
-            .where(AgentRunEvent.research_task_id == 1)
-            .order_by(AgentRunEvent.started_at.asc(), AgentRunEvent.id.asc())
-        ).scalars().all()
+        events = (
+            db.execute(
+                select(AgentRunEvent)
+                .where(AgentRunEvent.research_task_id == 1)
+                .order_by(AgentRunEvent.started_at.asc(), AgentRunEvent.id.asc())
+            )
+            .scalars()
+            .all()
+        )
 
     assert [event.stage for event in events] == [
         "opportunity_research",
@@ -197,8 +203,11 @@ def test_execute_research_run_generates_opportunities(
         "generate_supply_candidates",
         "generate_competitor_references",
         "estimate_validation_budgets",
+        "review_opportunity_risks",
     ]
-    assert all(event.status == agent_run_events_service.STATUS_COMPLETED for event in events)
+    assert all(
+        event.status == agent_run_events_service.STATUS_COMPLETED for event in events
+    )
     assert all(event.started_at is not None for event in events)
     assert all(event.completed_at is not None for event in events)
     assert all(event.duration_ms is not None for event in events)
@@ -251,6 +260,7 @@ def test_research_progress_returns_completed_event_timeline(
         "generate_supply_candidates",
         "generate_competitor_references",
         "estimate_validation_budgets",
+        "review_opportunity_risks",
     ]
     assert all(event["run_id"] == run_id for event in body["events"])
     assert all("id" not in event for event in body["events"])
@@ -294,20 +304,26 @@ def test_execute_research_run_persists_trace_context(
 
     assert task_response.status_code == 200
     assert task_response.json()["trace_id"] == "11111111-1111-1111-1111-111111111111"
-    assert task_response.json()["trace_url"] == "https://smith.langchain.com/public/trace/11111111"
+    assert (
+        task_response.json()["trace_url"]
+        == "https://smith.langchain.com/public/trace/11111111"
+    )
 
     with session_factory() as db:
-        events = db.execute(
-            select(AgentRunEvent).order_by(
-                AgentRunEvent.started_at.asc(),
-                AgentRunEvent.id.asc(),
+        events = (
+            db.execute(
+                select(AgentRunEvent).order_by(
+                    AgentRunEvent.started_at.asc(),
+                    AgentRunEvent.id.asc(),
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
     assert events
     assert all(
-        event.trace_id == "11111111-1111-1111-1111-111111111111"
-        for event in events
+        event.trace_id == "11111111-1111-1111-1111-111111111111" for event in events
     )
 
 
@@ -348,15 +364,21 @@ def test_execute_research_run_failure_sets_task_failed(
     assert opportunities_response.json() == []
 
     with session_factory() as db:
-        events = db.execute(
-            select(AgentRunEvent).order_by(
-                AgentRunEvent.started_at.asc(),
-                AgentRunEvent.id.asc(),
+        events = (
+            db.execute(
+                select(AgentRunEvent).order_by(
+                    AgentRunEvent.started_at.asc(),
+                    AgentRunEvent.id.asc(),
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
     failed_events = [
-        event for event in events if event.status == agent_run_events_service.STATUS_FAILED
+        event
+        for event in events
+        if event.status == agent_run_events_service.STATUS_FAILED
     ]
     assert {event.stage for event in failed_events} == {
         "generate_opportunities",
@@ -462,7 +484,9 @@ def test_rerun_replaces_old_opportunities(
     second_run = test_client.get(
         f"/api/v1/research-tasks/{created['uuid']}/opportunities"
     ).json()
-    old_detail_response = test_client.get(f"/api/v1/opportunities/{old_opportunity_uuid}")
+    old_detail_response = test_client.get(
+        f"/api/v1/opportunities/{old_opportunity_uuid}"
+    )
 
     assert len(second_run) == 3
     assert old_opportunity_uuid not in [item["uuid"] for item in second_run]
@@ -470,12 +494,20 @@ def test_rerun_replaces_old_opportunities(
     assert first_run_id != second_run_id
 
     with session_factory() as db:
-        first_events = db.execute(
-            select(AgentRunEvent).where(AgentRunEvent.run_id == first_run_id)
-        ).scalars().all()
-        second_events = db.execute(
-            select(AgentRunEvent).where(AgentRunEvent.run_id == second_run_id)
-        ).scalars().all()
+        first_events = (
+            db.execute(
+                select(AgentRunEvent).where(AgentRunEvent.run_id == first_run_id)
+            )
+            .scalars()
+            .all()
+        )
+        second_events = (
+            db.execute(
+                select(AgentRunEvent).where(AgentRunEvent.run_id == second_run_id)
+            )
+            .scalars()
+            .all()
+        )
 
     assert first_events
     assert second_events
@@ -490,6 +522,7 @@ def test_rerun_replaces_old_opportunities(
         "generate_supply_candidates",
         "generate_competitor_references",
         "estimate_validation_budgets",
+        "review_opportunity_risks",
     }
     assert {event.stage for event in second_events} == {
         "opportunity_research",
@@ -502,6 +535,7 @@ def test_rerun_replaces_old_opportunities(
         "generate_supply_candidates",
         "generate_competitor_references",
         "estimate_validation_budgets",
+        "review_opportunity_risks",
     }
 
 

@@ -22,6 +22,7 @@ import {
 } from "@/features/research/api";
 import { OpportunityCompetitorReferencePanel } from "@/features/research/competitor-references";
 import { OpportunityDemandInsightPanel } from "@/features/research/demand-insights";
+import { OpportunityRiskPanel } from "@/features/research/opportunity-risks";
 import { OpportunitySupplyCandidatePanel } from "@/features/research/supply-candidates";
 import { OpportunityValidationBudgetPanel } from "@/features/research/validation-budgets";
 
@@ -149,6 +150,7 @@ function OpportunityDetailContent({ opportunity }: { opportunity: Opportunity })
       <OpportunitySupplyCandidatePanel opportunityUuid={opportunity.uuid} />
       <OpportunityCompetitorReferencePanel opportunityUuid={opportunity.uuid} />
       <OpportunityValidationBudgetPanel opportunityUuid={opportunity.uuid} />
+      <OpportunityRiskPanel opportunityUuid={opportunity.uuid} />
       <OpportunitySourceInsights opportunityUuid={opportunity.uuid} />
     </div>
   );
