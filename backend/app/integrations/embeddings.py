@@ -37,12 +37,17 @@ class OpenAICompatibleEmbeddingClient:
 
         self.model = settings.embedding_model
         self.provider = settings.embedding_provider
+        self.dimension = settings.embedding_dimension
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
 
-        response = self.client.embeddings.create(model=self.model, input=texts)
+        response = self.client.embeddings.create(
+            model=self.model,
+            input=texts,
+            dimensions=self.dimension,
+        )
         embeddings = [item.embedding for item in response.data]
 
         if len(embeddings) != len(texts):
