@@ -171,6 +171,39 @@ test("action plans keep cautious copy and non-blocking states", () => {
   assert.match(progress, /生成行动计划/);
 });
 
+test("report sharing keeps online share actions and read-only public report", () => {
+  const report = readSource("src/features/reports/report-summary.tsx");
+  const sharing = readSource("src/features/reports/report-sharing.tsx");
+  const sharedReport = readSource("src/features/reports/shared-report.tsx");
+  const sharedRoute = readSource("src/app/share/reports/[token]/page.tsx");
+  const api = readSource("src/features/research/api.ts");
+
+  assert.match(report, /ReportSharePanel/);
+  assert.match(sharing, /生成分享链接/);
+  assert.match(sharing, /复制链接/);
+  assert.match(sharing, /打开分享页/);
+  assert.match(sharing, /撤销分享/);
+  assert.match(sharing, /分享功能暂不可用，不影响继续阅读报告/);
+  assert.match(api, /createReportShare/);
+  assert.match(api, /fetchPublicReportShare/);
+  assert.match(sharedRoute, /fetchPublicReportShare/);
+  assert.match(sharedRoute, /分享报告不可访问/);
+  assert.match(sharedReport, /只读分享报告/);
+  assert.match(sharedReport, /任务摘要/);
+  assert.match(sharedReport, /推荐排序/);
+  assert.match(sharedReport, /需求洞察/);
+  assert.match(sharedReport, /货源候选/);
+  assert.match(sharedReport, /竞品参考/);
+  assert.match(sharedReport, /验证预算/);
+  assert.match(sharedReport, /风险复核/);
+  assert.match(sharedReport, /行动计划/);
+  assert.match(sharedReport, /任务级来源线索/);
+  assert.match(sharedReport, /谨慎边界/);
+  assert.doesNotMatch(sharedReport, /重新运行/);
+  assert.doesNotMatch(sharedReport, /LangSmith/);
+  assert.doesNotMatch(sharedReport, /删除任务/);
+});
+
 test("interactive controls use pointer cursor while disabled controls do not", () => {
   const button = readSource("src/components/ui/button.tsx");
   const dropdown = readSource("src/components/ui/dropdown-menu.tsx");

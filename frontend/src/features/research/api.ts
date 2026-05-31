@@ -300,6 +300,65 @@ export type OpportunityActionPlan = {
   deleted_at: string | null;
 };
 
+export type ReportShareStatus = "active" | "revoked";
+
+export type ReportShareSnapshotTask = {
+  uuid: string;
+  title: string;
+  brief: string;
+  budget: string | null;
+  target_channels: string[];
+  preferred_categories: string[];
+  excluded_categories: string[];
+  target_audience: string | null;
+  expected_profit: string | null;
+  supply_preferences: string[];
+  constraints: string | null;
+  created_at: string;
+};
+
+export type ReportShareSnapshot = {
+  schema_version: number;
+  shared_at: string;
+  task: ReportShareSnapshotTask;
+  summary: {
+    opportunity_count: number;
+    source_count: number;
+    top_opportunity_name: string | null;
+  };
+  opportunities: Opportunity[];
+  sources: ResearchSource[];
+  demand_insights: OpportunityDemandInsight[];
+  supply_candidates: OpportunitySupplyCandidate[];
+  competitor_references: OpportunityCompetitorReference[];
+  validation_budgets: OpportunityValidationBudget[];
+  opportunity_risks: OpportunityRiskReview[];
+  action_plans: OpportunityActionPlan[];
+  boundary_notes: string[];
+};
+
+export type ReportShare = {
+  uuid: string;
+  research_task_uuid: string;
+  share_token: string;
+  title: string;
+  status: ReportShareStatus;
+  created_at: string;
+  updated_at: string;
+  revoked_at: string | null;
+  deleted_at: string | null;
+};
+
+export type PublicReportShare = {
+  uuid: string;
+  share_token: string;
+  title: string;
+  status: ReportShareStatus;
+  snapshot: ReportShareSnapshot;
+  created_at: string;
+  updated_at: string;
+};
+
 export const createResearchTaskSchema = z.object({
   title: z.string().trim().max(160).optional(),
   brief: z.string().trim().min(1, "请填写自然语言需求。").max(2000),
@@ -712,6 +771,71 @@ export async function fetchOpportunityActionPlans(
       cache: "no-store",
     },
   );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function createReportShare(taskUuid: string): Promise<ReportShare> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-tasks/${taskUuid}/report-shares`),
+    {
+      method: "POST",
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchTaskReportShares(
+  taskUuid: string,
+): Promise<ReportShare[]> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-tasks/${taskUuid}/report-shares`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function revokeReportShare(
+  shareUuid: string,
+): Promise<ReportShare> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/report-shares/${shareUuid}/revoke`),
+    {
+      method: "POST",
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchPublicReportShare(
+  shareToken: string,
+): Promise<PublicReportShare> {
+  const response = await safeFetch(buildApiUrl(`/api/v1/report-shares/${shareToken}`), {
+    cache: "no-store",
+  });
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));

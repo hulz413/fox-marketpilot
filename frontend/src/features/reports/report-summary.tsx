@@ -34,6 +34,7 @@ import { TaskOpportunityRiskSummary } from "@/features/research/opportunity-risk
 import { TaskSourceInsights } from "@/features/research/source-insights";
 import { TaskSupplyCandidateSummary } from "@/features/research/supply-candidates";
 import { TaskValidationBudgetSummary } from "@/features/research/validation-budgets";
+import { ReportSharePanel } from "@/features/reports/report-sharing";
 
 const riskLabels: Record<OpportunityRiskLevel, string> = {
   low: "低",
@@ -143,6 +144,8 @@ function ReportContent({
           <SummaryBlock title="下一步行动" body={topOpportunity.next_step_summary} />
         </CardContent>
       </Card>
+
+      <ReportSharePanel taskUuid={taskUuid} />
 
       <TaskDemandInsightSummary opportunities={opportunities} taskUuid={taskUuid} />
 
