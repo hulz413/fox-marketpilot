@@ -45,6 +45,7 @@ FAILURE_STAGE_LABELS = {
     ResearchTaskStage.GENERATE_COMPETITOR_REFERENCES.value: "竞品参考生成",
     ResearchTaskStage.ESTIMATE_VALIDATION_BUDGETS.value: "验证预算估算",
     ResearchTaskStage.REVIEW_OPPORTUNITY_RISKS.value: "风险复核",
+    ResearchTaskStage.CREATE_ACTION_PLANS.value: "行动计划生成",
 }
 
 
@@ -285,6 +286,9 @@ def make_failure_reason(stage: str, exc: Exception) -> str:
 
     if stage == ResearchTaskStage.REVIEW_OPPORTUNITY_RISKS.value:
         return "基础商机已生成，但风险复核失败；结果已保留，可稍后重试。"
+
+    if stage == ResearchTaskStage.CREATE_ACTION_PLANS.value:
+        return "基础商机已生成，但行动计划生成失败；结果已保留，可稍后重试。"
 
     if stage == ResearchTaskStage.VALIDATE_RESULTS.value:
         return "基础商机生成失败：结果校验失败，请稍后重试。"

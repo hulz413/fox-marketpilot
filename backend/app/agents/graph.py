@@ -14,6 +14,7 @@ from app.core.settings import get_settings
 from app.integrations.langsmith import is_langsmith_tracing_enabled, langsmith_trace
 from app.integrations.llm import create_llm_client
 from app.modules.agent_runs import service as agent_run_events_service
+from app.modules.action_plans import service as action_plans_service
 from app.modules.competitor_references import service as competitor_references_service
 from app.modules.demand_insights import service as demand_insights_service
 from app.modules.opportunities import service as opportunities_service
@@ -703,6 +704,69 @@ def review_opportunity_risks(state: ResearchGraphState) -> dict[str, Any]:
         }
 
 
+def create_action_plans(state: ResearchGraphState) -> dict[str, Any]:
+    db = state["db"]
+    task = state["task"]
+    run_id = state.get("run_id")
+
+    try:
+        result = action_plans_service.collect_action_plans(db, task)
+        task.status = ResearchTaskStatus.COMPLETED.value
+        task.current_stage = ResearchTaskStage.COMPLETED.value
+        task.failure_reason = None
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+
+        metadata = {
+            "action_plan_status": result.status,
+            "saved_action_plan_count": result.saved_count,
+        }
+        logger.info(
+            "Created action plans",
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                **metadata,
+            },
+        )
+
+        return {
+            "task": task,
+            "stage_event": {
+                "status": "completed",
+                "metadata": metadata,
+            },
+        }
+    except Exception as exc:  # pragma: no cover - defensive non-blocking fallback
+        db.rollback()
+        task.status = ResearchTaskStatus.COMPLETED.value
+        task.current_stage = ResearchTaskStage.COMPLETED.value
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+        logger.warning(
+            "Action plan generation failed after opportunities were persisted",
+            exc_info=True,
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                "error_type": type(exc).__name__,
+            },
+        )
+        return {
+            "task": task,
+            "stage_event": {
+                "status": "failed",
+                "error_summary": "行动计划生成失败，基础商机结果已保留。",
+                "metadata": {
+                    "action_plan_status": "failed",
+                    "error_type": type(exc).__name__,
+                },
+            },
+        }
+
+
 def update_task_stage(
     db: Session,
     task: ResearchTask,
@@ -858,6 +922,13 @@ def build_research_graph():
             review_opportunity_risks,
         ),
     )
+    graph.add_node(
+        "create_action_plans",
+        observe_node(
+            ResearchTaskStage.CREATE_ACTION_PLANS,
+            create_action_plans,
+        ),
+    )
     graph.add_edge(START, "normalize_intake")
     graph.add_edge("normalize_intake", "generate_opportunities")
     graph.add_edge("generate_opportunities", "validate_results")
@@ -868,6 +939,7 @@ def build_research_graph():
     graph.add_edge("generate_supply_candidates", "generate_competitor_references")
     graph.add_edge("generate_competitor_references", "estimate_validation_budgets")
     graph.add_edge("estimate_validation_budgets", "review_opportunity_risks")
-    graph.add_edge("review_opportunity_risks", END)
+    graph.add_edge("review_opportunity_risks", "create_action_plans")
+    graph.add_edge("create_action_plans", END)
 
     return graph.compile()

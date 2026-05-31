@@ -21,6 +21,7 @@ export type ResearchTaskStage =
   | "generate_competitor_references"
   | "estimate_validation_budgets"
   | "review_opportunity_risks"
+  | "create_action_plans"
   | "completed"
   | "failed";
 
@@ -270,6 +271,29 @@ export type OpportunityRiskReview = {
   risk_triggers: string[];
   mitigation_suggestions: string[];
   review_status: OpportunityRiskReviewStatus;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type ActionPlanStatus =
+  | "derived"
+  | "fallback"
+  | "insufficient_data";
+
+export type OpportunityActionPlan = {
+  uuid: string;
+  research_task_uuid: string;
+  opportunity_uuid: string;
+  validation_goal: string;
+  first_batch_plan: string;
+  product_validation_method: string;
+  content_angles: string[];
+  title_suggestions: string[];
+  selling_point_suggestions: string[];
+  supplier_inquiry_script: string;
+  prelaunch_checklist: string[];
+  plan_status: ActionPlanStatus;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -649,6 +673,40 @@ export async function fetchOpportunityRisks(
 ): Promise<OpportunityRiskReview[]> {
   const response = await safeFetch(
     buildApiUrl(`/api/v1/opportunities/${opportunityUuid}/opportunity-risks`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchTaskActionPlans(
+  taskUuid: string,
+): Promise<OpportunityActionPlan[]> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-tasks/${taskUuid}/action-plans`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchOpportunityActionPlans(
+  opportunityUuid: string,
+): Promise<OpportunityActionPlan[]> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/opportunities/${opportunityUuid}/action-plans`),
     {
       cache: "no-store",
     },

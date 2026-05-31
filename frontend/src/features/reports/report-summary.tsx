@@ -27,6 +27,7 @@ import {
   type OpportunityRiskLevel,
 } from "@/features/research/api";
 import { TaskContextNavigation } from "@/features/product-skeleton/components";
+import { TaskActionPlanSummary } from "@/features/research/action-plans";
 import { TaskCompetitorReferenceSummary } from "@/features/research/competitor-references";
 import { TaskDemandInsightSummary } from "@/features/research/demand-insights";
 import { TaskOpportunityRiskSummary } from "@/features/research/opportunity-risks";
@@ -155,6 +156,8 @@ function ReportContent({
       <TaskValidationBudgetSummary opportunities={opportunities} taskUuid={taskUuid} />
 
       <TaskOpportunityRiskSummary opportunities={opportunities} taskUuid={taskUuid} />
+
+      <TaskActionPlanSummary opportunities={opportunities} taskUuid={taskUuid} />
 
       <TaskSourceInsights taskUuid={taskUuid} />
 

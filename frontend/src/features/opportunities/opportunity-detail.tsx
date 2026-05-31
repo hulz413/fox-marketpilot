@@ -20,6 +20,7 @@ import {
   type Opportunity,
   type OpportunityRiskLevel,
 } from "@/features/research/api";
+import { OpportunityActionPlanPanel } from "@/features/research/action-plans";
 import { OpportunityCompetitorReferencePanel } from "@/features/research/competitor-references";
 import { OpportunityDemandInsightPanel } from "@/features/research/demand-insights";
 import { OpportunityRiskPanel } from "@/features/research/opportunity-risks";
@@ -151,6 +152,7 @@ function OpportunityDetailContent({ opportunity }: { opportunity: Opportunity })
       <OpportunityCompetitorReferencePanel opportunityUuid={opportunity.uuid} />
       <OpportunityValidationBudgetPanel opportunityUuid={opportunity.uuid} />
       <OpportunityRiskPanel opportunityUuid={opportunity.uuid} />
+      <OpportunityActionPlanPanel opportunityUuid={opportunity.uuid} />
       <OpportunitySourceInsights opportunityUuid={opportunity.uuid} />
     </div>
   );

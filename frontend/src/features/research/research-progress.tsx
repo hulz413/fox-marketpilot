@@ -59,6 +59,7 @@ const stageLabels: Record<ResearchTaskStage, string> = {
   generate_competitor_references: "生成竞品参考",
   estimate_validation_budgets: "估算验证预算",
   review_opportunity_risks: "复核商机风险",
+  create_action_plans: "生成行动计划",
   completed: "基础推荐已生成",
   failed: "生成失败",
 };
@@ -122,6 +123,11 @@ const stageTimeline: Array<{
     key: "review_opportunity_risks",
     label: "复核商机风险",
     description: "提示质量、履约、售后、合规、库存、竞争和平台规则风险。",
+  },
+  {
+    key: "create_action_plans",
+    label: "生成行动计划",
+    description: "整理首批验证计划、内容角度、询盘话术和上架前检查清单。",
   },
   {
     key: "completed",
@@ -368,7 +374,7 @@ function getProgressMessage(
   completedStageCount: number,
 ) {
   if (progress.status === "completed") {
-    return "基础商机推荐已经生成，可以继续查看商机列表、详情、货源候选、竞品参考、验证预算、风险复核和基础报告。";
+    return "基础商机推荐已经生成，可以继续查看商机列表、详情、货源候选、竞品参考、验证预算、风险复核、行动计划和基础报告。";
   }
 
   if (progress.status === "failed") {

@@ -14,3 +14,4 @@ import app.modules.supply_candidates.models  # noqa: E402,F401
 import app.modules.competitor_references.models  # noqa: E402,F401
 import app.modules.validation_budgets.models  # noqa: E402,F401
 import app.modules.opportunity_risks.models  # noqa: E402,F401
+import app.modules.action_plans.models  # noqa: E402,F401

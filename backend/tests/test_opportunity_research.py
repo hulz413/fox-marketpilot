@@ -204,6 +204,7 @@ def test_execute_research_run_generates_opportunities(
         "generate_competitor_references",
         "estimate_validation_budgets",
         "review_opportunity_risks",
+        "create_action_plans",
     ]
     assert all(
         event.status == agent_run_events_service.STATUS_COMPLETED for event in events
@@ -261,6 +262,7 @@ def test_research_progress_returns_completed_event_timeline(
         "generate_competitor_references",
         "estimate_validation_budgets",
         "review_opportunity_risks",
+        "create_action_plans",
     ]
     assert all(event["run_id"] == run_id for event in body["events"])
     assert all("id" not in event for event in body["events"])
@@ -523,6 +525,7 @@ def test_rerun_replaces_old_opportunities(
         "generate_competitor_references",
         "estimate_validation_budgets",
         "review_opportunity_risks",
+        "create_action_plans",
     }
     assert {event.stage for event in second_events} == {
         "opportunity_research",
@@ -536,6 +539,7 @@ def test_rerun_replaces_old_opportunities(
         "generate_competitor_references",
         "estimate_validation_budgets",
         "review_opportunity_risks",
+        "create_action_plans",
     }
 
 
