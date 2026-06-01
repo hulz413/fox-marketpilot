@@ -28,7 +28,13 @@ import {
 } from "@/features/product-skeleton/components";
 import { useLanguage } from "@/features/i18n/language-provider";
 
-import { fetchResearchTasks, startResearchRun, type ResearchTask } from "./api";
+import {
+  fetchLatestResearchQualityReadinessRun,
+  fetchResearchTasks,
+  startResearchRun,
+  type ReadinessOverallStatus,
+  type ResearchTask,
+} from "./api";
 
 const statusLabels: Record<ResearchTask["status"], string> = {
   created: "已创建",
@@ -148,6 +154,7 @@ export function ResearchHistoryList() {
                 <TableHead className="h-14 px-5">{t("任务")}</TableHead>
                 <TableHead>{t("创建时间")}</TableHead>
                 <TableHead>{t("状态")}</TableHead>
+                <TableHead>{t("演示状态")}</TableHead>
                 <TableHead>{t("当前阶段")}</TableHead>
                 <TableHead className="pr-5 text-right">{t("操作")}</TableHead>
               </TableRow>
@@ -168,6 +175,9 @@ export function ResearchHistoryList() {
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={statusLabels[task.status]} />
+                  </TableCell>
+                  <TableCell>
+                    <HistoryReadinessBadge task={task} />
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {t(stageLabels[task.current_stage])}
@@ -205,6 +215,7 @@ function HistoryCard({
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge status={statusLabels[task.status]} />
         <Badge variant="outline">{t(stageLabels[task.current_stage])}</Badge>
+        <HistoryReadinessBadge task={task} />
       </div>
       <h2 className="mt-3 font-semibold">{task.title}</h2>
       <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -214,6 +225,54 @@ function HistoryCard({
         <HistoryActions task={task} isStarting={isStarting} onStart={onStart} />
       </div>
     </article>
+  );
+}
+
+type HistoryReadinessStatus =
+  | ReadinessOverallStatus
+  | "unchecked"
+  | "stale"
+  | "loading";
+
+const readinessLabels: Record<HistoryReadinessStatus, string> = {
+  ready: "可演示",
+  warning: "需复查",
+  failed: "检查失败",
+  unchecked: "未检查",
+  stale: "已过期",
+  loading: "检查读取中",
+};
+
+function HistoryReadinessBadge({ task }: { task: ResearchTask }) {
+  const { t } = useLanguage();
+  const { data, isLoading } = useQuery({
+    queryKey: ["research-readiness", task.uuid],
+    queryFn: () => fetchLatestResearchQualityReadinessRun(task.uuid),
+    enabled: task.status === "completed",
+  });
+
+  if (task.status !== "completed") {
+    return null;
+  }
+
+  const status: HistoryReadinessStatus = isLoading
+    ? "loading"
+    : data?.stale
+      ? "stale"
+      : data?.overall_status ?? "unchecked";
+  const tone =
+    status === "ready"
+      ? "border-primary/20 bg-primary/10 text-primary"
+      : status === "failed"
+        ? "border-destructive/30 bg-destructive/10 text-destructive"
+        : status === "warning" || status === "stale"
+          ? "border-amber-500/30 bg-amber-500/10 text-amber-700"
+          : "border-muted-foreground/20 bg-muted text-muted-foreground";
+
+  return (
+    <Badge variant="outline" className={tone}>
+      {t(readinessLabels[status])}
+    </Badge>
   );
 }
 

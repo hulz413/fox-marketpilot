@@ -8,6 +8,7 @@ from app.api.v1.routes import (
     opportunities,
     opportunity_risks,
     report_shares,
+    research_quality_readiness,
     research_tasks,
     sources,
     supply_candidates,
@@ -26,3 +27,7 @@ api_router.include_router(validation_budgets.router, tags=["validation_budgets"]
 api_router.include_router(opportunity_risks.router, tags=["opportunity_risks"])
 api_router.include_router(action_plans.router, tags=["action_plans"])
 api_router.include_router(report_shares.router, tags=["report_shares"])
+api_router.include_router(
+    research_quality_readiness.router,
+    tags=["research_quality_readiness"],
+)

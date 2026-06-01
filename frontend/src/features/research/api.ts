@@ -359,6 +359,46 @@ export type PublicReportShare = {
   updated_at: string;
 };
 
+export type ReadinessRunStatus =
+  | "running"
+  | "completed"
+  | "partial"
+  | "failed";
+export type ReadinessOverallStatus = "ready" | "warning" | "failed";
+export type ReadinessCheckStatus = "pass" | "warning" | "failed" | "skipped";
+
+export type ResearchQualityReadinessCheck = {
+  key: string;
+  label: string;
+  status: ReadinessCheckStatus;
+  severity: string;
+  summary: string;
+  metrics: Record<string, unknown>;
+  reasons: string[];
+  actions: string[];
+};
+
+export type ResearchQualityReadinessRun = {
+  uuid: string;
+  research_task_uuid: string;
+  research_run_id: string | null;
+  status: ReadinessRunStatus;
+  overall_status: ReadinessOverallStatus;
+  summary: string;
+  checks: ResearchQualityReadinessCheck[];
+  metrics: Record<string, unknown>;
+  rag_evaluation_run_uuid: string | null;
+  trace_id: string | null;
+  trace_url: string | null;
+  stale: boolean;
+  started_at: string;
+  completed_at: string | null;
+  error_summary: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
 export const createResearchTaskSchema = z.object({
   title: z.string().trim().max(160).optional(),
   brief: z.string().trim().min(1, "请填写自然语言需求。").max(2000),
@@ -836,6 +876,41 @@ export async function fetchPublicReportShare(
   const response = await safeFetch(buildApiUrl(`/api/v1/report-shares/${shareToken}`), {
     cache: "no-store",
   });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function createResearchQualityReadinessRun(
+  taskUuid: string,
+): Promise<ResearchQualityReadinessRun> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-tasks/${taskUuid}/readiness-runs`),
+    {
+      method: "POST",
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchLatestResearchQualityReadinessRun(
+  taskUuid: string,
+): Promise<ResearchQualityReadinessRun | null> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-tasks/${taskUuid}/readiness-runs/latest`),
+    {
+      cache: "no-store",
+    },
+  );
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response));

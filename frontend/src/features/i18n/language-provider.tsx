@@ -144,6 +144,13 @@ const englishCopy: Record<string, string> = {
     "Continuation entries for real tasks, ordered newest first.",
   "{count} 条记录": "{count} records",
   "当前阶段": "Current stage",
+  "演示状态": "Demo status",
+  "可演示": "Demo-ready",
+  "需复查": "Needs review",
+  "检查失败": "Check failed",
+  "未检查": "Unchecked",
+  "已过期": "Stale",
+  "检查读取中": "Loading check",
   "操作": "Actions",
 
   "研究需求": "Research brief",

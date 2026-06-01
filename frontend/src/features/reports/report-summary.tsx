@@ -64,49 +64,71 @@ export function ReportSummary({ taskUuid }: { taskUuid: string }) {
     );
   }
 
+  const taskNavigation = (
+    <TaskContextNavigation
+      active="report"
+      sourcesHref="#sources"
+      taskUuid={taskUuid}
+    />
+  );
+
   if (isLoading) {
     return (
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle>基础报告</CardTitle>
-          <CardDescription>正在读取待验证商机摘要。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-32 rounded-md border bg-muted/40" />
-        </CardContent>
-      </Card>
+      <div className="grid gap-5">
+        {taskNavigation}
+        <Card className="rounded-lg">
+          <CardHeader>
+            <CardTitle>基础报告</CardTitle>
+            <CardDescription>正在读取待验证商机摘要。</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-32 rounded-md border bg-muted/40" />
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Card className="rounded-lg border-destructive/30">
-        <CardHeader>
-          <CardTitle>报告读取失败</CardTitle>
-          <CardDescription>
-            {error instanceof Error ? error.message : "无法读取基础报告。"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button type="button" variant="outline" onClick={() => void refetch()}>
-            <RefreshCcw data-icon="inline-start" />
-            重新加载
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="grid gap-5">
+        {taskNavigation}
+        <Card className="rounded-lg border-destructive/30">
+          <CardHeader>
+            <CardTitle>报告读取失败</CardTitle>
+            <CardDescription>
+              {error instanceof Error ? error.message : "无法读取基础报告。"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button type="button" variant="outline" onClick={() => void refetch()}>
+              <RefreshCcw data-icon="inline-start" />
+              重新加载
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (!opportunities?.length) {
     return (
-      <EmptyReportState
-        title="还没有基础报告"
-        description="任务尚未生成商机结果，完成后这里会汇总推荐排序、风险等级和下一步行动摘要。"
-      />
+      <div className="grid gap-5">
+        {taskNavigation}
+        <EmptyReportState
+          title="还没有基础报告"
+          description="任务尚未生成商机结果，完成后这里会汇总推荐排序、风险等级和下一步行动摘要。"
+        />
+      </div>
     );
   }
 
-  return <ReportContent opportunities={opportunities} taskUuid={taskUuid} />;
+  return (
+    <div className="grid gap-5">
+      {taskNavigation}
+      <ReportContent opportunities={opportunities} taskUuid={taskUuid} />
+    </div>
+  );
 }
 
 function ReportContent({
@@ -119,12 +141,7 @@ function ReportContent({
   const topOpportunity = opportunities[0];
 
   return (
-    <div className="grid gap-5">
-      <TaskContextNavigation
-        active="report"
-        sourcesHref="#sources"
-        taskUuid={taskUuid}
-      />
+    <>
       <Card className="rounded-lg">
         <CardHeader>
           <Badge variant="secondary" className="w-fit">
@@ -211,7 +228,7 @@ function ReportContent({
           </Table>
         </CardContent>
       </Card>
-    </div>
+    </>
   );
 }
 

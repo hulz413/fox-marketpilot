@@ -29,9 +29,12 @@ import { TaskContextNavigation } from "@/features/product-skeleton/components";
 import { cn } from "@/lib/utils";
 
 import {
+  createResearchQualityReadinessRun,
+  fetchLatestResearchQualityReadinessRun,
   fetchResearchProgress,
   startResearchRun,
   type AgentRunEvent,
+  type ResearchQualityReadinessRun,
   type ResearchProgress,
   type ResearchProgressAction,
   type ResearchTaskStage,
@@ -206,41 +209,70 @@ export function ResearchProgressView({ taskUuid }: { taskUuid: string }) {
       ]);
     },
   });
+  const readinessQuery = useQuery({
+    queryKey: ["research-readiness", taskUuid],
+    queryFn: () => fetchLatestResearchQualityReadinessRun(taskUuid),
+    enabled: progress?.status === "completed",
+    refetchInterval: (query) =>
+      query.state.data?.status === "running" ? 2000 : false,
+  });
+  const readinessMutation = useMutation({
+    mutationFn: createResearchQualityReadinessRun,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["research-readiness", taskUuid],
+      });
+    },
+  });
 
   if (isLoading) {
     return (
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle>研究进度</CardTitle>
-          <CardDescription>正在读取任务运行状态。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-36 rounded-md border bg-muted/40" />
-        </CardContent>
-      </Card>
+      <div className="grid gap-5">
+        <TaskContextNavigation
+          active="progress"
+          sourcesHref={`/reports/${taskUuid}#sources`}
+          taskUuid={taskUuid}
+        />
+        <Card className="rounded-lg">
+          <CardHeader>
+            <CardTitle>研究进度</CardTitle>
+            <CardDescription>正在读取任务运行状态。</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-36 rounded-md border bg-muted/40" />
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (error || !progress) {
     return (
-      <Card className="rounded-lg border-destructive/30">
-        <CardHeader>
-          <CardTitle>研究进度读取失败</CardTitle>
-          <CardDescription>{formatError(error)}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" onClick={() => void refetch()}>
-            <RefreshCcw data-icon="inline-start" />
-            重新加载
-          </Button>
-          <Button asChild variant="ghost">
-            <Link href="/research/tasks">
-              <ArrowLeft data-icon="inline-start" />
-              返回任务
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="grid gap-5">
+        <TaskContextNavigation
+          active="progress"
+          sourcesHref={`/reports/${taskUuid}#sources`}
+          taskUuid={taskUuid}
+        />
+        <Card className="rounded-lg border-destructive/30">
+          <CardHeader>
+            <CardTitle>研究进度读取失败</CardTitle>
+            <CardDescription>{formatError(error)}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={() => void refetch()}>
+              <RefreshCcw data-icon="inline-start" />
+              重新加载
+            </Button>
+            <Button asChild variant="ghost">
+              <Link href="/research/tasks">
+                <ArrowLeft data-icon="inline-start" />
+                返回任务
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -257,8 +289,108 @@ export function ResearchProgressView({ taskUuid }: { taskUuid: string }) {
         isStarting={startRunMutation.isPending}
         onStart={() => startRunMutation.mutate(progress.task.uuid)}
       />
+      {progress.status === "completed" ? (
+        <ReadinessPanel
+          error={readinessQuery.error}
+          isLoading={readinessQuery.isLoading}
+          isRunning={readinessMutation.isPending}
+          onRun={() => readinessMutation.mutate(progress.task.uuid)}
+          readiness={readinessQuery.data ?? null}
+        />
+      ) : null}
       <StageTimeline progress={progress} />
     </div>
+  );
+}
+
+function ReadinessPanel({
+  error,
+  isLoading,
+  isRunning,
+  onRun,
+  readiness,
+}: {
+  error: unknown;
+  isLoading: boolean;
+  isRunning: boolean;
+  onRun: () => void;
+  readiness: ResearchQualityReadinessRun | null;
+}) {
+  const status = readiness?.stale ? "stale" : readiness?.overall_status ?? "unchecked";
+  const checks = readiness?.checks ?? [];
+
+  return (
+    <Card className="rounded-lg">
+      <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <div>
+          <CardTitle>演示就绪检查</CardTitle>
+          <CardDescription>
+            内部检查研究完整性、RAG 证据和生成内容边界，不作为用户侧商机评分。
+          </CardDescription>
+        </div>
+        <ReadinessBadge status={status} />
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {isLoading ? (
+          <div className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
+            正在读取最近一次演示就绪检查。
+          </div>
+        ) : null}
+        {error ? (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+            {formatError(error)}
+          </div>
+        ) : null}
+        {!isLoading && !readiness ? (
+          <div className="rounded-md border border-dashed p-4 text-sm leading-6 text-muted-foreground">
+            当前任务尚未运行演示就绪检查。运行后会汇总主流程完整性、RAG 索引健康、RAG 检索评测和生成内容 smoke check。
+          </div>
+        ) : null}
+        {readiness ? (
+          <>
+            <section className="rounded-lg border bg-background p-4">
+              <p className="font-semibold">{readiness.summary}</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                最近检查：{formatDateTime(readiness.completed_at ?? readiness.updated_at)}
+                {readiness.stale ? "；任务已重新运行，请重新检查。" : ""}
+              </p>
+              {readiness.error_summary ? (
+                <p className="mt-2 text-sm text-destructive">
+                  {readiness.error_summary}
+                </p>
+              ) : null}
+            </section>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {checks.map((check) => (
+                <section key={check.key} className="rounded-lg border bg-background p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="font-semibold">{check.label}</h2>
+                    <CheckStatusBadge status={check.status} />
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {check.summary}
+                  </p>
+                  {check.reasons.length ? (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {check.reasons[0]}
+                    </p>
+                  ) : null}
+                </section>
+              ))}
+            </div>
+          </>
+        ) : null}
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" disabled={isRunning} onClick={onRun}>
+            <RefreshCcw data-icon="inline-start" />
+            {isRunning ? "正在检查" : readiness ? "重新运行检查" : "运行检查"}
+          </Button>
+          {readiness?.rag_evaluation_run_uuid ? (
+            <Badge variant="outline">RAG 检索评测已关联</Badge>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -463,6 +595,62 @@ function StageTimeline({ progress }: { progress: ResearchProgress }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+type ReadinessDisplayStatus =
+  | "ready"
+  | "warning"
+  | "failed"
+  | "stale"
+  | "unchecked";
+
+const readinessStatusLabels: Record<ReadinessDisplayStatus, string> = {
+  ready: "可演示",
+  warning: "需复查",
+  failed: "检查失败",
+  stale: "已过期",
+  unchecked: "未检查",
+};
+
+function ReadinessBadge({ status }: { status: ReadinessDisplayStatus }) {
+  const tone =
+    status === "ready"
+      ? "border-primary/20 bg-primary/10 text-primary"
+      : status === "failed"
+        ? "border-destructive/30 bg-destructive/10 text-destructive"
+        : status === "warning" || status === "stale"
+          ? "border-amber-500/30 bg-amber-500/10 text-amber-700"
+          : "border-muted-foreground/20 bg-muted text-muted-foreground";
+
+  return (
+    <Badge variant="outline" className={cn("rounded-full px-3 py-1", tone)}>
+      {readinessStatusLabels[status]}
+    </Badge>
+  );
+}
+
+const checkStatusLabels: Record<string, string> = {
+  pass: "通过",
+  warning: "警告",
+  failed: "失败",
+  skipped: "跳过",
+};
+
+function CheckStatusBadge({ status }: { status: string }) {
+  const tone =
+    status === "pass"
+      ? "border-primary/20 bg-primary/10 text-primary"
+      : status === "failed"
+        ? "border-destructive/30 bg-destructive/10 text-destructive"
+        : status === "warning"
+          ? "border-amber-500/30 bg-amber-500/10 text-amber-700"
+          : "border-muted-foreground/20 bg-muted text-muted-foreground";
+
+  return (
+    <Badge variant="outline" className={cn("rounded-full px-2.5 py-0.5", tone)}>
+      {checkStatusLabels[status] ?? status}
+    </Badge>
   );
 }
 

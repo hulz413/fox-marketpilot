@@ -88,6 +88,18 @@ test("result pages include task context and source panels", () => {
   assert.match(shell, /TaskContextNavigation/);
 });
 
+test("task context tabs stay mounted during task surface loading states", () => {
+  const opportunities = readSource("src/features/opportunities/opportunity-list.tsx");
+  const report = readSource("src/features/reports/report-summary.tsx");
+  const progress = readSource("src/features/research/research-progress.tsx");
+
+  assert.match(opportunities, /const taskNavigation = \(/);
+  assert.match(opportunities, /if \(isLoading\)[\s\S]*\{taskNavigation\}/);
+  assert.match(report, /const taskNavigation = \(/);
+  assert.match(report, /if \(isLoading\)[\s\S]*\{taskNavigation\}/);
+  assert.match(progress, /if \(isLoading\)[\s\S]*active="progress"/);
+});
+
 test("demand insights keep cautious copy and non-blocking states", () => {
   const source = readSource("src/features/research/demand-insights.tsx");
 
@@ -202,6 +214,28 @@ test("report sharing keeps online share actions and read-only public report", ()
   assert.doesNotMatch(sharedReport, /重新运行/);
   assert.doesNotMatch(sharedReport, /LangSmith/);
   assert.doesNotMatch(sharedReport, /删除任务/);
+});
+
+test("research readiness stays internal and visible only in app surfaces", () => {
+  const progress = readSource("src/features/research/research-progress.tsx");
+  const history = readSource("src/features/research/research-history-list.tsx");
+  const sharedReport = readSource("src/features/reports/shared-report.tsx");
+  const sharedRoute = readSource("src/app/share/reports/[token]/page.tsx");
+  const api = readSource("src/features/research/api.ts");
+
+  assert.match(api, /ResearchQualityReadinessRun/);
+  assert.match(api, /createResearchQualityReadinessRun/);
+  assert.match(api, /fetchLatestResearchQualityReadinessRun/);
+  assert.match(progress, /演示就绪检查/);
+  assert.match(progress, /运行检查/);
+  assert.match(progress, /RAG 检索评测已关联/);
+  assert.match(progress, /不作为用户侧商机评分/);
+  assert.match(history, /演示状态/);
+  assert.match(history, /可演示/);
+  assert.match(history, /需复查/);
+  assert.doesNotMatch(sharedReport, /演示就绪检查/);
+  assert.doesNotMatch(sharedReport, /RAG 检索评测已关联/);
+  assert.doesNotMatch(sharedRoute, /fetchLatestResearchQualityReadinessRun/);
 });
 
 test("interactive controls use pointer cursor while disabled controls do not", () => {

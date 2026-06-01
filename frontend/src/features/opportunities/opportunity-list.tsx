@@ -60,57 +60,70 @@ export function OpportunityList() {
     );
   }
 
+  const taskNavigation = (
+    <TaskContextNavigation active="opportunities" taskUuid={taskUuid} />
+  );
+
   if (isLoading) {
     return (
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle>{t("基础商机推荐")}</CardTitle>
-          <CardDescription>{t("正在读取任务生成的待验证商机。")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-28 rounded-md border bg-muted/40" />
-        </CardContent>
-      </Card>
+      <div className="grid gap-5">
+        {taskNavigation}
+        <Card className="rounded-lg">
+          <CardHeader>
+            <CardTitle>{t("基础商机推荐")}</CardTitle>
+            <CardDescription>{t("正在读取任务生成的待验证商机。")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-28 rounded-md border bg-muted/40" />
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Card className="rounded-lg border-destructive/30">
-        <CardHeader>
-          <CardTitle>{t("商机读取失败")}</CardTitle>
-          <CardDescription>
-            {error instanceof Error ? error.message : t("无法读取商机结果。")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex gap-2">
-          <Button type="button" variant="outline" onClick={() => void refetch()}>
-            <RefreshCcw data-icon="inline-start" />
-            {t("重新加载")}
-          </Button>
-          <Button asChild variant="ghost">
-            <Link href="/research/tasks">
-              <ClipboardList data-icon="inline-start" />
-              {t("返回任务")}
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="grid gap-5">
+        {taskNavigation}
+        <Card className="rounded-lg border-destructive/30">
+          <CardHeader>
+            <CardTitle>{t("商机读取失败")}</CardTitle>
+            <CardDescription>
+              {error instanceof Error ? error.message : t("无法读取商机结果。")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex gap-2">
+            <Button type="button" variant="outline" onClick={() => void refetch()}>
+              <RefreshCcw data-icon="inline-start" />
+              {t("重新加载")}
+            </Button>
+            <Button asChild variant="ghost">
+              <Link href="/research/tasks">
+                <ClipboardList data-icon="inline-start" />
+                {t("返回任务")}
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   if (!opportunities?.length) {
     return (
-      <EmptyOpportunityState
-        title="还没有生成商机"
-        description="任务可能仍在运行，或本次运行尚未产出可展示的基础推荐。"
-      />
+      <div className="grid gap-5">
+        {taskNavigation}
+        <EmptyOpportunityState
+          title="还没有生成商机"
+          description="任务可能仍在运行，或本次运行尚未产出可展示的基础推荐。"
+        />
+      </div>
     );
   }
 
   return (
     <div className="grid gap-5">
-      <TaskContextNavigation active="opportunities" taskUuid={taskUuid} />
+      {taskNavigation}
       <Card className="overflow-hidden rounded-lg py-0 shadow-none">
         <CardHeader className="flex flex-row items-center justify-between gap-4 border-b px-5 py-4">
           <div className="min-w-0">

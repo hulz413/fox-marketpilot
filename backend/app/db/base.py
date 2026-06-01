@@ -18,3 +18,4 @@ import app.modules.action_plans.models  # noqa: E402,F401
 import app.modules.report_sharing.models  # noqa: E402,F401
 import app.modules.rag_retrieval.models  # noqa: E402,F401
 import app.modules.rag_quality_evaluation.models  # noqa: E402,F401
+import app.modules.research_quality_readiness.models  # noqa: E402,F401
