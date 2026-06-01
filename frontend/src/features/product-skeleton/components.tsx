@@ -6,9 +6,9 @@ import {
   AlertTriangle,
   ArrowRight,
   BarChart3,
-  Building2,
   Check,
   CheckCircle2,
+  ChevronRight,
   CircleHelp,
   Compass,
   FileText,
@@ -68,11 +68,12 @@ export function ProductShell({
 }: ProductShellProps) {
   const { t } = useLanguage();
   const agentTitle = "小成本商机顾问";
-  const agentDescription = "从需求、供给、竞品和风险中发现可快速验证的小生意机会。";
+  const agentDescription =
+    "从需求、供给、竞品和风险里，筛出值得快速验证的小生意机会。";
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="min-h-screen lg:grid lg:grid-cols-[300px_minmax(0,1fr)]">
+    <main className="min-h-screen bg-background text-foreground lg:h-screen lg:overflow-hidden">
+      <div className="min-h-screen lg:grid lg:h-screen lg:grid-cols-[300px_minmax(0,1fr)]">
         <header className="border-b bg-card/95 px-4 py-4 lg:hidden">
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
@@ -94,7 +95,7 @@ export function ProductShell({
           <ProductNavLinks active={active} layout="mobile" />
         </header>
 
-        <aside className="hidden flex-col border-r bg-card/85 lg:flex">
+        <aside className="hidden flex-col border-r bg-card/85 lg:flex lg:h-screen lg:overflow-y-auto">
           <div className="flex items-center gap-4 px-6 py-6">
             <div className="flex size-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Compass className="size-6" aria-hidden="true" />
@@ -113,9 +114,6 @@ export function ProductShell({
               title={`${t(agentTitle)}\n${t(agentDescription)}`}
               aria-label={`${t(agentTitle)}，${t(agentDescription)}`}
             >
-              <div className="mt-1 flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <Building2 className="size-4" aria-hidden="true" />
-              </div>
               <div className="min-w-0">
                 <p className="text-base font-semibold">{t(agentTitle)}</p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -135,8 +133,8 @@ export function ProductShell({
           </div>
         </aside>
 
-        <section className="min-w-0">
-          <header className="flex min-h-20 flex-col gap-4 border-b bg-card px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+        <section className="min-w-0 lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
+          <header className="flex min-h-20 flex-col gap-4 border-b bg-card px-5 py-4 lg:shrink-0 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
               {eyebrow ? (
                 <p className="text-sm text-muted-foreground">{eyebrow}</p>
@@ -163,18 +161,92 @@ export function ProductShell({
             </div>
           </header>
 
-          <div
-            className={cn(
-              "grid gap-5 p-5",
-              aside ? "xl:grid-cols-[minmax(0,1fr)_320px]" : ""
-            )}
-          >
-            <div className="min-w-0">{children}</div>
-            {aside ? <aside className="min-w-0">{aside}</aside> : null}
+          <div className="grid gap-4 p-5 lg:min-h-0 lg:flex-1 lg:grid-rows-[auto_minmax(0,1fr)] lg:gap-0 lg:overflow-hidden">
+            <div className="relative z-20 lg:-mx-5 lg:-mt-5 lg:border-b lg:border-border/80 lg:bg-background lg:px-5 lg:pb-3 lg:pt-5 lg:shadow-[0_10px_18px_-16px_rgba(31,39,34,0.28)]">
+              <ProductBreadcrumb active={active} title={title} />
+            </div>
+            <div
+              className={cn(
+                "grid gap-5 lg:min-h-0 lg:overflow-y-auto lg:pr-1 lg:pt-4",
+                aside ? "xl:grid-cols-[minmax(0,1fr)_320px]" : ""
+              )}
+            >
+              <div className="min-w-0">{children}</div>
+              {aside ? <aside className="min-w-0">{aside}</aside> : null}
+            </div>
           </div>
         </section>
       </div>
     </main>
+  );
+}
+
+function ProductBreadcrumb({
+  active,
+  title,
+}: {
+  active: NavKey;
+  title: string;
+}) {
+  const { t } = useLanguage();
+  const activeItem = productNavItems.find((item) => item.key === active);
+  const activeLabel = activeItem ? t(activeItem.label) : null;
+  const titleLabel = t(title);
+  const shouldShowTitle = !activeLabel || activeLabel !== titleLabel;
+
+  return (
+    <nav
+      aria-label={t("面包屑导航")}
+      className="flex min-h-6 items-center text-sm text-muted-foreground"
+    >
+      <ol className="flex min-w-0 flex-wrap items-center gap-1">
+        <li>
+          <Link
+            href="/research/tasks"
+            className="font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {t("MarketPilot")}
+          </Link>
+        </li>
+        {activeItem ? (
+          <>
+            <BreadcrumbSeparator />
+            <li>
+              {shouldShowTitle ? (
+                <Link
+                  href={activeItem.href}
+                  className="font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {activeLabel}
+                </Link>
+              ) : (
+                <span className="font-semibold text-foreground" aria-current="page">
+                  {activeLabel}
+                </span>
+              )}
+            </li>
+          </>
+        ) : null}
+        {shouldShowTitle ? (
+          <>
+            <BreadcrumbSeparator />
+            <li>
+              <span className="font-semibold text-foreground" aria-current="page">
+                {titleLabel}
+              </span>
+            </li>
+          </>
+        ) : null}
+      </ol>
+    </nav>
+  );
+}
+
+function BreadcrumbSeparator() {
+  return (
+    <li className="flex items-center" aria-hidden="true">
+      <ChevronRight className="size-4" />
+    </li>
   );
 }
 
@@ -262,7 +334,7 @@ function UserMenu() {
                   ) : (
                     <span className="size-4" />
                   )}
-                  {t("中文")}
+                  中文
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   disabled={language === "en"}
@@ -273,7 +345,7 @@ function UserMenu() {
                   ) : (
                     <span className="size-4" />
                   )}
-                  {t("English")}
+                  English
                 </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuSubContent>

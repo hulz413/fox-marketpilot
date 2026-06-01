@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -20,12 +21,14 @@ type LanguageContextValue = {
 };
 
 const defaultLanguage: Language = "zh";
-const storageKey = "marketpilot:language";
+export const languageStorageKey = "marketpilot:language";
 
 const englishCopy: Record<string, string> = {
   "MarketPilot": "MarketPilot",
   "商机顾问 Agent": "Opportunity Advisor Agent",
   "小成本商机顾问": "Lean Opportunity Advisor",
+  "从需求、供给、竞品和风险里，筛出值得快速验证的小生意机会。":
+    "Screen demand, supply, competitors, and risk to find small-business opportunities worth validating quickly.",
   "从需求、供给、竞品和风险中发现可快速验证的小生意机会。":
     "Find low-cost business opportunities by connecting demand, supply, competitors, and risk.",
   "来源、供给、竞品、风险和验证计划会在后续切片中逐步展开。":
@@ -36,10 +39,11 @@ const englishCopy: Record<string, string> = {
   "切换语言": "Language",
   "中文": "Chinese",
   "English": "English",
+  "面包屑导航": "Breadcrumb navigation",
 
   "新建研究": "New research",
   "研究任务": "Research tasks",
-  "商机推荐": "Opportunity recommendations",
+  "商机推荐": "Opportunities",
   "基础商机推荐": "Basic opportunity recommendations",
   "最终报告": "Final report",
   "研究历史": "Research history",
@@ -210,7 +214,7 @@ const englishCopy: Record<string, string> = {
 
 const languageContext = createContext<LanguageContextValue | null>(null);
 
-function normalizeLanguage(value: string | null): Language {
+export function normalizeLanguage(value: string | null): Language {
   return value === "en" ? "en" : defaultLanguage;
 }
 
@@ -224,19 +228,25 @@ function formatCopy(template: string, values?: CopyValues) {
   );
 }
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>(() => {
-    if (typeof window === "undefined") {
-      return defaultLanguage;
-    }
-
-    return normalizeLanguage(window.localStorage.getItem(storageKey));
-  });
+export function LanguageProvider({
+  children,
+  initialLanguage = defaultLanguage,
+}: {
+  children: ReactNode;
+  initialLanguage?: Language;
+}) {
+  const [language, setLanguageState] = useState<Language>(initialLanguage);
 
   useEffect(() => {
     document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
-    window.localStorage.setItem(storageKey, language);
+    window.localStorage.setItem(languageStorageKey, language);
   }, [language]);
+
+  const setLanguage = useCallback((nextLanguage: Language) => {
+    setLanguageState(nextLanguage);
+    window.localStorage.setItem(languageStorageKey, nextLanguage);
+    document.cookie = `${languageStorageKey}=${nextLanguage}; path=/; max-age=31536000; samesite=lax`;
+  }, []);
 
   const value = useMemo<LanguageContextValue>(
     () => ({
@@ -245,7 +255,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       t: (source, values) =>
         formatCopy(language === "en" ? englishCopy[source] ?? source : source, values),
     }),
-    [language],
+    [language, setLanguage],
   );
 
   return (

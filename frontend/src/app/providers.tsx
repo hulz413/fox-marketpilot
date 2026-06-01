@@ -3,9 +3,18 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { LanguageProvider } from "@/features/i18n/language-provider";
+import {
+  LanguageProvider,
+  type Language,
+} from "@/features/i18n/language-provider";
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({
+  children,
+  initialLanguage,
+}: {
+  children: React.ReactNode;
+  initialLanguage: Language;
+}) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -20,7 +29,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <LanguageProvider>{children}</LanguageProvider>
+      <LanguageProvider initialLanguage={initialLanguage}>{children}</LanguageProvider>
     </QueryClientProvider>
   );
 }
