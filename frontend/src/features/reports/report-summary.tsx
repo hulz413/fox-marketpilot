@@ -258,7 +258,7 @@ function EmptyReportState({
         <div className="flex flex-wrap gap-3">
           <Button asChild>
             <Link href="/research/tasks">
-              返回研究任务
+              返回我的研究
               <ArrowRight data-icon="inline-end" />
             </Link>
           </Button>

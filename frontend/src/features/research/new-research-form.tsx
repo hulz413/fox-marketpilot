@@ -253,7 +253,7 @@ export function NewResearchForm() {
               variant="outline"
               onClick={() => router.push("/research/tasks")}
             >
-              {t("查看任务")}
+              {t("我的研究")}
             </Button>
           </div>
         </CardContent>

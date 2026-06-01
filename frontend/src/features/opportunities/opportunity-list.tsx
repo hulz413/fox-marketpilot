@@ -55,7 +55,7 @@ export function OpportunityList() {
     return (
       <EmptyOpportunityState
         title="请选择一条研究任务"
-        description="商机推荐需要从已完成的真实研究任务进入。"
+        description="商机推荐需要从我的研究中选择一条已完成的真实研究进入。"
       />
     );
   }
@@ -100,7 +100,7 @@ export function OpportunityList() {
             <Button asChild variant="ghost">
               <Link href="/research/tasks">
                 <ClipboardList data-icon="inline-start" />
-                {t("返回任务")}
+                {t("返回我的研究")}
               </Link>
             </Button>
           </CardContent>
@@ -287,9 +287,12 @@ function EmptyOpportunityState({
       <CardContent>
         <Button asChild>
           <Link href="/research/tasks">
-            {t("返回研究任务")}
+            {t("返回我的研究")}
             <ArrowRight data-icon="inline-end" />
           </Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/research/new">{t("新建研究")}</Link>
         </Button>
       </CardContent>
     </Card>

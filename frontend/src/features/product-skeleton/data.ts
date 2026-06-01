@@ -1,13 +1,10 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  BarChart3,
   ClipboardList,
-  FileText,
-  History,
   Sparkles,
 } from "lucide-react";
 
-export type NavKey = "new" | "tasks" | "opportunities" | "report" | "history";
+export type NavKey = "new" | "tasks";
 
 export type ProductNavItem = {
   key: NavKey;
@@ -18,10 +15,7 @@ export type ProductNavItem = {
 
 export const productNavItems: ProductNavItem[] = [
   { key: "new", label: "新建研究", href: "/research/new", icon: Sparkles },
-  { key: "tasks", label: "研究任务", href: "/research/tasks", icon: ClipboardList },
-  { key: "opportunities", label: "商机推荐", href: "/opportunities", icon: BarChart3 },
-  { key: "report", label: "最终报告", href: "/reports", icon: FileText },
-  { key: "history", label: "研究历史", href: "/history", icon: History },
+  { key: "tasks", label: "我的研究", href: "/research/tasks", icon: ClipboardList },
 ];
 
 export type SampleResearchPayload = {

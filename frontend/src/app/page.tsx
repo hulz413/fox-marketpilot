@@ -9,12 +9,22 @@ import {
 } from "@/features/product-skeleton/components";
 import { ResearchTaskList } from "@/features/research/research-task-list";
 
-export default function HomePage() {
+type HomePageProps = {
+  searchParams?: Promise<{
+    status?: string | string[];
+  }>;
+};
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const resolvedSearchParams = await searchParams;
+  const statusParam = resolvedSearchParams?.status;
+  const statusFilter = Array.isArray(statusParam) ? statusParam[0] : statusParam;
+
   return (
     <ProductShell
       active="tasks"
-      title="研究任务"
-      description="从这里进入新建研究、查看运行状态，并继续浏览商机推荐与最终报告。"
+      title="我的研究"
+      description="统一查看进行中、已完成和失败的研究，并从同一入口继续进度或阅读结果。"
       action={
         <Button asChild>
           <Link href="/research/new">
@@ -26,7 +36,7 @@ export default function HomePage() {
     >
       <div className="grid gap-5">
         <TaskStateCards />
-        <ResearchTaskList />
+        <ResearchTaskList statusFilter={statusFilter} />
       </div>
     </ProductShell>
   );

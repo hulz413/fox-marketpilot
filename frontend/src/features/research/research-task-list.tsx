@@ -2,13 +2,16 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useState, type ReactNode } from "react";
 import {
-  ArrowRight,
+  BarChart3,
+  ChevronsLeft,
+  ChevronsRight,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Eye,
-  FileText,
   MoreHorizontal,
-  Play,
   RefreshCcw,
 } from "lucide-react";
 
@@ -22,6 +25,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -29,22 +43,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useLanguage } from "@/features/i18n/language-provider";
 import {
   EmptyResearchState,
   StatusBadge,
 } from "@/features/product-skeleton/components";
+import { cn } from "@/lib/utils";
 
-import { fetchResearchTasks, startResearchRun, type ResearchTask } from "./api";
+import {
+  fetchResearchTasks,
+  startResearchRun,
+  type ResearchTask,
+} from "./api";
 
 const statusLabels: Record<ResearchTask["status"], string> = {
   created: "已创建",
@@ -73,17 +83,247 @@ const stageLabels: Record<ResearchTask["current_stage"], string> = {
   failed: "生成失败",
 };
 
-function formatDate(value: string, language: "zh" | "en") {
-  return new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
+type TaskStatusFilter = "all" | "active" | "completed" | "failed";
+
+const taskStatusFilters: Array<{
+  key: TaskStatusFilter;
+  label: string;
+  href: string;
+}> = [
+  { key: "all", label: "全部", href: "/research/tasks" },
+  { key: "active", label: "进行中", href: "/research/tasks?status=active" },
+  { key: "completed", label: "已完成", href: "/research/tasks?status=completed" },
+  { key: "failed", label: "失败", href: "/research/tasks?status=failed" },
+];
+
+const researchTaskPageSizeOptions = [10, 20, 50, 100] as const;
+const defaultResearchTaskPageSize = 10;
+type ResearchTaskPageSize = (typeof researchTaskPageSizeOptions)[number];
+
+const taskTableTaskMinWidth = 440;
+const taskTableColumns: Array<{ key: string; width?: number }> = [
+  { key: "task" },
+  { key: "status", width: 120 },
+  { key: "stage", width: 180 },
+  { key: "createdAt", width: 160 },
+  { key: "actions", width: 200 },
+];
+const taskTableMinWidth = `${
+  taskTableTaskMinWidth +
+  taskTableColumns.reduce((total, column) => total + (column.width ?? 0), 0)
+}px`;
+
+function TaskTableColumnGroup() {
+  return (
+    <colgroup>
+      {taskTableColumns.map((column) => (
+        <col
+          key={column.key}
+          style={{ width: column.width ? `${column.width}px` : undefined }}
+        />
+      ))}
+    </colgroup>
+  );
 }
 
-export function ResearchTaskList() {
-  const { language, t } = useLanguage();
+type PaginationItem = number | "start-ellipsis" | "end-ellipsis";
+
+function getPaginationItems(
+  currentPage: number,
+  totalPages: number,
+): PaginationItem[] {
+  if (totalPages <= 5) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  if (currentPage <= 3) {
+    return [1, 2, 3, "end-ellipsis", totalPages];
+  }
+
+  if (currentPage >= totalPages - 2) {
+    return [1, "start-ellipsis", totalPages - 2, totalPages - 1, totalPages];
+  }
+
+  return [
+    1,
+    "start-ellipsis",
+    currentPage - 1,
+    currentPage,
+    currentPage + 1,
+    "end-ellipsis",
+    totalPages,
+  ];
+}
+
+function parseTaskStatusFilter(value?: string): TaskStatusFilter {
+  return value === "active" || value === "completed" || value === "failed"
+    ? value
+    : "all";
+}
+
+function matchesTaskStatusFilter(task: ResearchTask, filter: TaskStatusFilter) {
+  if (filter === "active") {
+    return task.status === "created" || task.status === "queued" || task.status === "running";
+  }
+
+  if (filter === "completed" || filter === "failed") {
+    return task.status === filter;
+  }
+
+  return true;
+}
+
+function getLocalDateParts(value: string) {
+  const date = new Date(value);
+  const pad = (part: number) => String(part).padStart(2, "0");
+
+  return {
+    year: String(date.getFullYear()),
+    month: pad(date.getMonth() + 1),
+    day: pad(date.getDate()),
+    hour: pad(date.getHours()),
+    minute: pad(date.getMinutes()),
+    second: pad(date.getSeconds()),
+  };
+}
+
+function formatDay(value: string) {
+  const { year, month, day } = getLocalDateParts(value);
+
+  return [year, month, day].join("-");
+}
+
+function formatDateTime(value: string) {
+  const { year, month, day, hour, minute, second } = getLocalDateParts(value);
+
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+}
+
+function TaskCreatedAt({ value }: { value: string }) {
+  const { t } = useLanguage();
+  const day = formatDay(value);
+  const fullDate = formatDateTime(value);
+
+  return (
+    <time
+      dateTime={value}
+      title={fullDate}
+      aria-label={t("完整创建时间：{date}", { date: fullDate })}
+    >
+      {day}
+    </time>
+  );
+}
+
+function LoadingLine({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn("block animate-pulse rounded bg-muted", className)}
+    />
+  );
+}
+
+function ResearchTaskListLoading() {
+  const { t } = useLanguage();
+
+  return (
+    <Card
+      aria-busy="true"
+      className="overflow-hidden rounded-lg py-0 shadow-none"
+    >
+      <CardHeader className="grid grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto] items-center gap-4 border-b px-5 pt-4 pb-3 [.border-b]:pb-3">
+        <div className="grid gap-2">
+          <CardTitle>{t("研究记录")}</CardTitle>
+          <CardDescription>{t("正在加载真实研究任务。")}</CardDescription>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+          <div className="inline-flex flex-wrap rounded-lg bg-muted/40 p-1">
+            {taskStatusFilters.map((filter) => (
+              <Button
+                key={filter.key}
+                disabled
+                variant={filter.key === "completed" ? "secondary" : "ghost"}
+                size="sm"
+                className="rounded-md"
+              >
+                {t(filter.label)}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="grid gap-3 p-4 md:hidden">
+          {[0, 1, 2].map((item) => (
+            <div key={item} className="rounded-lg border bg-card p-4">
+              <div className="mb-4 flex gap-2">
+                <LoadingLine className="h-7 w-16" />
+                <LoadingLine className="h-7 w-24" />
+              </div>
+              <LoadingLine className="mb-3 h-5 w-4/5" />
+              <LoadingLine className="mb-5 h-4 w-2/3" />
+              <LoadingLine className="h-9 w-32" />
+            </div>
+          ))}
+        </div>
+        <div className="hidden md:block">
+          <Table className="table-fixed" style={{ minWidth: taskTableMinWidth }}>
+            <TaskTableColumnGroup />
+            <TableHeader>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableHead className="h-14 px-5">{t("任务")}</TableHead>
+                <TableHead>{t("状态")}</TableHead>
+                <TableHead>{t("阶段摘要")}</TableHead>
+                <TableHead>{t("创建时间")}</TableHead>
+                <TableHead className="px-5">{t("操作")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[0, 1, 2].map((item) => (
+                <TableRow key={item} className="h-[72px]">
+                  <TableCell className="px-5">
+                    <LoadingLine className="mb-2 h-4 w-72" />
+                    <LoadingLine className="h-3 w-52" />
+                  </TableCell>
+                  <TableCell>
+                    <LoadingLine className="h-7 w-16" />
+                  </TableCell>
+                  <TableCell>
+                    <LoadingLine className="h-4 w-28" />
+                  </TableCell>
+                  <TableCell>
+                    <LoadingLine className="h-4 w-32" />
+                  </TableCell>
+                  <TableCell className="px-5">
+                    <div className="flex justify-start">
+                      <LoadingLine className="h-9 w-32" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function ResearchTaskList({ statusFilter }: { statusFilter?: string }) {
+  const activeFilter = parseTaskStatusFilter(statusFilter);
+  const [pagination, setPagination] = useState<{
+    filter: TaskStatusFilter;
+    page: number;
+    pageSize: ResearchTaskPageSize;
+  }>({
+    filter: activeFilter,
+    page: 1,
+    pageSize: defaultResearchTaskPageSize,
+  });
+  const currentPage = pagination.filter === activeFilter ? pagination.page : 1;
+  const currentPageSize = pagination.pageSize;
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const {
     data: tasks,
@@ -103,17 +343,7 @@ export function ResearchTaskList() {
   });
 
   if (isLoading) {
-    return (
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle>{t("研究任务列表")}</CardTitle>
-          <CardDescription>{t("正在加载真实研究任务。")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-24 rounded-md border bg-muted/40" />
-        </CardContent>
-      </Card>
-    );
+    return <ResearchTaskListLoading />;
   }
 
   if (error) {
@@ -139,66 +369,243 @@ export function ResearchTaskList() {
     return <EmptyResearchState />;
   }
 
+  const filteredTasks = tasks.filter((task) =>
+    matchesTaskStatusFilter(task, activeFilter),
+  );
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredTasks.length / currentPageSize),
+  );
+  const safePage = Math.min(currentPage, totalPages);
+  const pageStart = (safePage - 1) * currentPageSize;
+  const paginatedTasks = filteredTasks.slice(
+    pageStart,
+    pageStart + currentPageSize,
+  );
+
   return (
     <Card className="overflow-hidden rounded-lg py-0 shadow-none">
-      <CardHeader className="flex flex-row items-center justify-between gap-4 border-b px-5 py-4">
-        <div>
-          <CardTitle>{t("研究任务列表")}</CardTitle>
-          <CardDescription>{t("展示真实创建的任务和当前状态。")}</CardDescription>
+      <CardHeader className="grid grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto] items-center gap-4 border-b px-5 pt-4 pb-3 [.border-b]:pb-3">
+        <div className="grid gap-2">
+          <CardTitle>{t("研究记录")}</CardTitle>
+          <CardDescription>{t("统一查看进行中、已完成和失败的真实研究。")}</CardDescription>
         </div>
-        <Badge variant="secondary">{t("{count} 个任务", { count: tasks.length })}</Badge>
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+          <div className="inline-flex flex-wrap rounded-lg bg-muted/40 p-1">
+            {taskStatusFilters.map((filter) => (
+              <Button
+                key={filter.key}
+                asChild
+                variant={activeFilter === filter.key ? "secondary" : "ghost"}
+                size="sm"
+                className="rounded-md"
+              >
+                <Link href={filter.href}>{t(filter.label)}</Link>
+              </Button>
+            ))}
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="grid gap-3 p-4 md:hidden">
-          {tasks.map((task) => (
-            <TaskCard
-              key={task.uuid}
-              task={task}
-              isStarting={startRunMutation.isPending}
-              onStart={() => startRunMutation.mutate(task.uuid)}
-            />
-          ))}
-        </div>
-        <div className="hidden md:block">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50 hover:bg-muted/50">
-                <TableHead className="h-14 px-5">{t("任务")}</TableHead>
-                <TableHead>{t("状态")}</TableHead>
-                <TableHead>{t("阶段摘要")}</TableHead>
-                <TableHead>{t("创建时间")}</TableHead>
-                <TableHead className="pr-5 text-right">{t("下一步")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tasks.map((task) => (
-                <TableRow key={task.uuid} className="h-16">
-                  <TableCell className="px-5">
-                    <TaskTitle task={task} />
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={statusLabels[task.status]} />
-                  </TableCell>
-                  <TableCell className="max-w-[220px] text-sm text-muted-foreground">
-                    {t(stageLabels[task.current_stage])}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {formatDate(task.created_at, language)}
-                  </TableCell>
-                  <TableCell className="pr-5">
-                    <TaskActions
-                      task={task}
-                      isStarting={startRunMutation.isPending}
-                      onStart={() => startRunMutation.mutate(task.uuid)}
-                    />
-                  </TableCell>
-                </TableRow>
+        {filteredTasks.length ? (
+          <>
+            <div className="grid gap-3 p-4 md:hidden">
+              {paginatedTasks.map((task) => (
+                <TaskCard
+                  key={task.uuid}
+                  task={task}
+                  isStarting={startRunMutation.isPending}
+                  onStart={() => startRunMutation.mutate(task.uuid)}
+                />
               ))}
-            </TableBody>
-          </Table>
-        </div>
+            </div>
+            <div className="hidden md:block">
+              <Table className="table-fixed" style={{ minWidth: taskTableMinWidth }}>
+                <TaskTableColumnGroup />
+                <TableHeader>
+                  <TableRow className="bg-muted/50 hover:bg-muted/50">
+                    <TableHead className="h-14 px-5">{t("任务")}</TableHead>
+                    <TableHead>{t("状态")}</TableHead>
+                    <TableHead>{t("阶段摘要")}</TableHead>
+                    <TableHead>{t("创建时间")}</TableHead>
+                    <TableHead className="px-5">{t("操作")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedTasks.map((task) => (
+                    <TableRow key={task.uuid} className="h-[72px]">
+                      <TableCell className="px-5">
+                        <TaskTitle task={task} compact />
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={statusLabels[task.status]} />
+                      </TableCell>
+                      <TableCell className="max-w-[240px] text-sm">
+                        <TaskStageSummary task={task} />
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <TaskCreatedAt value={task.created_at} />
+                      </TableCell>
+                      <TableCell className="px-5">
+                        <TaskActions
+                          task={task}
+                          isStarting={startRunMutation.isPending}
+                          onStart={() => startRunMutation.mutate(task.uuid)}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <ResearchTaskPagination
+              currentPage={safePage}
+              pageSize={currentPageSize}
+              totalPages={totalPages}
+              onPageChange={(page) => {
+                setPagination({
+                  filter: activeFilter,
+                  page,
+                  pageSize: currentPageSize,
+                });
+              }}
+              onPageSizeChange={(pageSize) => {
+                setPagination({ filter: activeFilter, page: 1, pageSize });
+              }}
+            />
+          </>
+        ) : (
+          <EmptyFilteredState filter={activeFilter} />
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+function ResearchTaskPagination({
+  currentPage,
+  pageSize,
+  totalPages,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  currentPage: number;
+  pageSize: ResearchTaskPageSize;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: ResearchTaskPageSize) => void;
+}) {
+  const { t } = useLanguage();
+  const paginationItems = getPaginationItems(currentPage, totalPages);
+
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-3 border-t px-5 py-3">
+      <div className="whitespace-nowrap text-sm font-medium text-muted-foreground">
+        {currentPage}/{totalPages}
+      </div>
+      <nav aria-label={t("研究记录分页")} className="flex items-center gap-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("第一页")}
+          disabled={currentPage === 1}
+          onClick={() => onPageChange(1)}
+        >
+          <ChevronsLeft aria-hidden="true" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("上一页")}
+          disabled={currentPage === 1}
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+        >
+          <ChevronLeft aria-hidden="true" />
+        </Button>
+        {paginationItems.map((item) =>
+          typeof item === "number" ? (
+            <Button
+              key={item}
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("第 {page} 页", { page: item })}
+              aria-current={item === currentPage ? "page" : undefined}
+              className={cn(
+                "rounded-md",
+                item === currentPage
+                  ? "bg-muted shadow-none hover:bg-muted focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  : "",
+              )}
+              onClick={() => onPageChange(item)}
+            >
+              {item}
+            </Button>
+          ) : (
+            <span
+              key={item}
+              aria-hidden="true"
+              className="flex size-8 items-center justify-center text-sm font-medium"
+            >
+              ...
+            </span>
+          ),
+        )}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("下一页")}
+          disabled={currentPage === totalPages}
+          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+        >
+          <ChevronRight aria-hidden="true" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("最后一页")}
+          disabled={currentPage === totalPages}
+          onClick={() => onPageChange(totalPages)}
+        >
+          <ChevronsRight aria-hidden="true" />
+        </Button>
+      </nav>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={t("每页条数")}
+            className="min-w-24 justify-center"
+          >
+            {t("{count} 条/页", { count: pageSize })}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-32">
+          <DropdownMenuRadioGroup
+            value={String(pageSize)}
+            onValueChange={(value) => {
+              const nextPageSize = Number(value) as ResearchTaskPageSize;
+
+              if (researchTaskPageSizeOptions.includes(nextPageSize)) {
+                onPageSizeChange(nextPageSize);
+              }
+            }}
+          >
+            {researchTaskPageSizeOptions.map((option) => (
+              <DropdownMenuRadioItem key={option} value={String(option)}>
+                {t("{count} 条/页", { count: option })}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 
@@ -222,6 +629,9 @@ function TaskCard({
       <div className="mt-3">
         <TaskTitle task={task} />
       </div>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        <TaskCreatedAt value={task.created_at} />
+      </p>
       {task.failure_reason ? (
         <p className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
           {task.failure_reason}
@@ -234,28 +644,78 @@ function TaskCard({
   );
 }
 
-function TaskTitle({ task }: { task: ResearchTask }) {
+function TaskTitle({
+  task,
+  compact = false,
+}: {
+  task: ResearchTask;
+  compact?: boolean;
+}) {
   const title = task.title.trim();
   const brief = task.brief.trim();
   const showBrief = brief && brief !== title;
+  const titleText = title || brief;
   const meta = [
     task.budget,
     task.target_channels.join("、"),
     task.target_audience,
   ].filter(Boolean);
+  const compactSubtitle = [
+    showBrief ? brief : null,
+    ...meta,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  if (compact) {
+    return (
+      <div className="grid min-w-0 gap-1">
+        <p className="truncate font-medium leading-5" title={titleText}>
+          {titleText}
+        </p>
+        {compactSubtitle ? (
+          <p
+            className="truncate text-xs leading-4 text-muted-foreground"
+            title={compactSubtitle}
+          >
+            {compactSubtitle}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className="min-w-0">
-      <p className="max-w-[520px] truncate font-medium">{title || brief}</p>
+      <p className="truncate font-medium">{titleText}</p>
       {showBrief ? (
-        <p className="mt-1 max-w-[560px] truncate text-xs text-muted-foreground">
+        <p className="mt-1 truncate text-xs text-muted-foreground">
           {brief}
         </p>
       ) : null}
       {meta.length ? (
-        <p className="mt-1 max-w-[560px] truncate text-xs text-muted-foreground">
+        <p className="mt-1 truncate text-xs text-muted-foreground">
           {meta.join(" · ")}
         </p>
+      ) : null}
+    </div>
+  );
+}
+
+function TaskStageSummary({ task }: { task: ResearchTask }) {
+  const { t } = useLanguage();
+  const stage = t(stageLabels[task.current_stage]);
+  const failureReason = task.failure_reason?.trim();
+
+  return (
+    <div className="grid min-w-0 gap-1">
+      <span className="truncate text-muted-foreground" title={stage}>
+        {stage}
+      </span>
+      {failureReason ? (
+        <span className="truncate text-destructive" title={failureReason}>
+          {failureReason}
+        </span>
       ) : null}
     </div>
   );
@@ -274,60 +734,99 @@ function TaskActions({
 
   if (task.status === "completed") {
     return (
-      <div className="flex justify-end gap-2">
-        <Button asChild size="sm">
-          <Link href={`/opportunities?task=${task.uuid}`}>
-            {t("查看结果")}
-            <ArrowRight data-icon="inline-end" />
+      <TaskActionGroup>
+        <Button asChild size="sm" className="w-28 rounded-r-none">
+          <Link href={`/reports/${task.uuid}`}>
+            {t("查看研究结果")}
           </Link>
         </Button>
-        <TaskSecondaryActions task={task} />
-      </div>
+        <TaskSecondaryActions
+          task={task}
+          isStarting={isStarting}
+          onStart={onStart}
+        />
+      </TaskActionGroup>
     );
   }
 
   if (task.status === "queued" || task.status === "running") {
     return (
-      <div className="flex justify-end gap-2">
-        <Button asChild size="sm">
+      <TaskActionGroup>
+        <Button asChild size="sm" className="w-28 rounded-r-none">
           <Link href={`/research/tasks/${task.uuid}`}>
-            <RefreshCcw data-icon="inline-start" />
             {t("查看进度")}
           </Link>
         </Button>
-        <TaskSecondaryActions task={task} />
-      </div>
+        <TaskSecondaryActions
+          task={task}
+          isStarting={isStarting}
+          onStart={onStart}
+        />
+      </TaskActionGroup>
     );
   }
 
+  const actionVariant = task.status === "failed" ? "outline" : "default";
+
   return (
-    <div className="flex justify-end gap-2">
+    <TaskActionGroup>
       <Button
         type="button"
-        variant={task.status === "failed" ? "outline" : "default"}
+        variant={actionVariant}
         size="sm"
+        className="w-28 rounded-r-none"
         disabled={isStarting}
         onClick={onStart}
       >
-        {task.status === "failed" ? (
-          <RefreshCcw data-icon="inline-start" />
-        ) : (
-          <Play data-icon="inline-start" />
-        )}
         {task.status === "failed" ? t("重新运行") : t("开始研究")}
       </Button>
-      <TaskSecondaryActions task={task} />
+      <TaskSecondaryActions
+        task={task}
+        isStarting={isStarting}
+        onStart={onStart}
+        triggerVariant={actionVariant}
+      />
+    </TaskActionGroup>
+  );
+}
+
+function TaskActionGroup({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex justify-start">
+      <div className="inline-flex overflow-hidden rounded-md shadow-xs">
+        {children}
+      </div>
     </div>
   );
 }
 
-function TaskSecondaryActions({ task }: { task: ResearchTask }) {
+function TaskSecondaryActions({
+  task,
+  isStarting,
+  onStart,
+  triggerVariant = "default",
+}: {
+  task: ResearchTask;
+  isStarting: boolean;
+  onStart: () => void;
+  triggerVariant?: "default" | "outline";
+}) {
   const { t } = useLanguage();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label={t("更多操作")}>
+        <Button
+          variant={triggerVariant}
+          size="icon-sm"
+          className={cn(
+            "w-9 rounded-l-none",
+            triggerVariant === "default"
+              ? "border-l border-primary-foreground/30"
+              : "border-l-0",
+          )}
+          aria-label={t("更多操作")}
+        >
           <MoreHorizontal aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
@@ -342,12 +841,23 @@ function TaskSecondaryActions({ task }: { task: ResearchTask }) {
             </Link>
           </DropdownMenuItem>
           {task.status === "completed" ? (
-            <DropdownMenuItem asChild>
-              <Link href={`/reports/${task.uuid}`}>
-                <FileText aria-hidden="true" />
-                {t("报告")}
-              </Link>
-            </DropdownMenuItem>
+            <>
+              <DropdownMenuItem asChild>
+                <Link href={`/opportunities?task=${task.uuid}`}>
+                  <BarChart3 aria-hidden="true" />
+                  {t("商机推荐")}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={isStarting}
+                onSelect={() => {
+                  onStart();
+                }}
+              >
+                <RefreshCcw aria-hidden="true" />
+                {t("重新运行")}
+              </DropdownMenuItem>
+            </>
           ) : null}
           {task.trace_url ? (
             <DropdownMenuItem asChild>
@@ -360,5 +870,29 @@ function TaskSecondaryActions({ task }: { task: ResearchTask }) {
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function EmptyFilteredState({ filter }: { filter: TaskStatusFilter }) {
+  const { t } = useLanguage();
+  const label = taskStatusFilters.find((item) => item.key === filter)?.label ?? "全部";
+
+  return (
+    <div className="m-5 rounded-lg border border-dashed p-5">
+      <h2 className="font-semibold">{t("当前筛选没有研究记录")}</h2>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        {t("当前没有{filter}状态的研究，可以切换筛选或新建研究。", {
+          filter: t(label),
+        })}
+      </p>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Button asChild>
+          <Link href="/research/tasks">{t("查看全部")}</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link href="/research/new">{t("新建研究")}</Link>
+        </Button>
+      </div>
+    </div>
   );
 }

@@ -73,7 +73,7 @@ export function OpportunityDetail({ opportunityUuid }: { opportunityUuid: string
             重新加载
           </Button>
           <Button asChild variant="ghost">
-            <Link href="/research/tasks">返回任务</Link>
+            <Link href="/research/tasks">返回我的研究</Link>
           </Button>
         </CardContent>
       </Card>

@@ -13,11 +13,77 @@ function readSource(path) {
 test("task list keeps state-driven primary actions and secondary menu", () => {
   const source = readSource("src/features/research/research-task-list.tsx");
 
-  assert.match(source, /查看结果/);
+  assert.match(source, /查看研究结果/);
   assert.match(source, /查看进度/);
   assert.match(source, /开始研究/);
   assert.match(source, /重新运行/);
   assert.match(source, /更多操作/);
+  assert.match(source, /taskStatusFilters/);
+  assert.match(source, /TaskTableColumnGroup/);
+  assert.match(source, /className="table-fixed"/);
+  assert.match(source, /grid-cols-\[minmax\(0,1fr\)_auto\] grid-rows-\[auto\] items-center/);
+  assert.match(source, /pt-4 pb-3 \[\.border-b\]:pb-3/);
+  assert.match(source, /<div className="grid gap-2">/);
+  assert.match(source, /defaultResearchTaskPageSize = 10/);
+  assert.match(source, /researchTaskPageSizeOptions = \[10, 20, 50, 100\]/);
+  assert.match(source, /ResearchTaskPagination/);
+  assert.match(source, /getPaginationItems/);
+  assert.match(source, /paginatedTasks/);
+  assert.match(source, /第一页/);
+  assert.match(source, /上一页/);
+  assert.match(source, /下一页/);
+  assert.match(source, /最后一页/);
+  assert.match(source, /每页条数/);
+  assert.match(source, /\{count\} 条\/页/);
+  assert.match(source, /DropdownMenuRadioGroup/);
+  assert.match(source, /justify-end gap-3 border-t/);
+  assert.match(source, /bg-muted shadow-none hover:bg-muted/);
+  assert.doesNotMatch(source, /bg-muted ring-2 ring-ring\/50/);
+  assert.match(source, /focus-visible:border-ring focus-visible:ring-\[3px\] focus-visible:ring-ring\/50/);
+  assert.match(source, /aria-current/);
+  assert.doesNotMatch(source, /\{shown\} \/ \{total\} 条记录/);
+  assert.match(source, /t\("操作"\)/);
+  assert.doesNotMatch(source, /t\("下一步"\)/);
+  assert.match(source, /TaskActionGroup/);
+  assert.match(source, /rounded-r-none/);
+  assert.match(source, /rounded-l-none/);
+  assert.match(source, /w-28 rounded-r-none/);
+  assert.match(source, /w-9 rounded-l-none/);
+  assert.match(source, /flex justify-start/);
+  assert.doesNotMatch(source, /ArrowRight/);
+  assert.doesNotMatch(source, /TimerReset/);
+  assert.doesNotMatch(source, /Play/);
+  assert.doesNotMatch(source, /演示状态/);
+  assert.doesNotMatch(source, /TaskReadinessBadge/);
+});
+
+test("task list shows short dates with full hover timestamps", () => {
+  const source = readSource("src/features/research/research-task-list.tsx");
+
+  assert.match(source, /function getLocalDateParts/);
+  assert.match(source, /function formatDay/);
+  assert.match(source, /function formatDateTime/);
+  assert.match(source, /\[year, month, day\]\.join\("-"\)/);
+  assert.match(source, /\$\{year\}-\$\{month\}-\$\{day\} \$\{hour\}:\$\{minute\}:\$\{second\}/);
+  assert.match(source, /title=\{fullDate\}/);
+  assert.match(source, /<TaskCreatedAt value=\{task\.created_at\}/);
+});
+
+test("global navigation is streamlined around my research", () => {
+  const data = readSource("src/features/product-skeleton/data.ts");
+  const home = readSource("src/app/page.tsx");
+  const history = readSource("src/app/history/page.tsx");
+  const opportunities = readSource("src/app/opportunities/page.tsx");
+  const reports = readSource("src/app/reports/page.tsx");
+
+  assert.match(data, /label: "我的研究"/);
+  assert.doesNotMatch(data, /label: "研究历史"/);
+  assert.doesNotMatch(data, /label: "商机推荐"/);
+  assert.doesNotMatch(data, /label: "最终报告"/);
+  assert.match(home, /title="我的研究"/);
+  assert.match(history, /redirect\("\/research\/tasks\?status=completed"\)/);
+  assert.match(opportunities, /active="tasks"/);
+  assert.match(reports, /active="tasks"/);
 });
 
 test("demo research samples are actionable real task entries", () => {
@@ -53,7 +119,7 @@ test("language menu keeps bilingual UI toggle with Chinese default", () => {
   assert.match(shell, /setLanguage\("zh"\)/);
   assert.match(shell, /setLanguage\("en"\)/);
   assert.match(provider, /defaultLanguage: Language = "zh"/);
-  assert.match(provider, /Research tasks/);
+  assert.match(provider, /My research/);
 });
 
 test("source transparency keeps cautious copy and non-blocking states", () => {
@@ -147,14 +213,12 @@ test("research progress includes RAG evidence indexing stage", () => {
   const progress = readSource("src/features/research/research-progress.tsx");
   const api = readSource("src/features/research/api.ts");
   const taskList = readSource("src/features/research/research-task-list.tsx");
-  const history = readSource("src/features/research/research-history-list.tsx");
 
   assert.match(api, /index_rag_evidence/);
   assert.match(progress, /index_rag_evidence/);
   assert.match(progress, /整理公开来源证据/);
   assert.match(progress, /待验证证据/);
   assert.match(taskList, /整理公开来源证据/);
-  assert.match(history, /整理公开来源证据/);
 });
 
 test("opportunity risks keep cautious copy and non-blocking states", () => {
@@ -218,7 +282,7 @@ test("report sharing keeps online share actions and read-only public report", ()
 
 test("research readiness stays internal and visible only in app surfaces", () => {
   const progress = readSource("src/features/research/research-progress.tsx");
-  const history = readSource("src/features/research/research-history-list.tsx");
+  const taskList = readSource("src/features/research/research-task-list.tsx");
   const sharedReport = readSource("src/features/reports/shared-report.tsx");
   const sharedRoute = readSource("src/app/share/reports/[token]/page.tsx");
   const api = readSource("src/features/research/api.ts");
@@ -230,9 +294,10 @@ test("research readiness stays internal and visible only in app surfaces", () =>
   assert.match(progress, /运行检查/);
   assert.match(progress, /RAG 检索评测已关联/);
   assert.match(progress, /不作为用户侧商机评分/);
-  assert.match(history, /演示状态/);
-  assert.match(history, /可演示/);
-  assert.match(history, /需复查/);
+  assert.doesNotMatch(taskList, /fetchLatestResearchQualityReadinessRun/);
+  assert.doesNotMatch(taskList, /演示状态/);
+  assert.doesNotMatch(taskList, /可演示/);
+  assert.doesNotMatch(taskList, /需复查/);
   assert.doesNotMatch(sharedReport, /演示就绪检查/);
   assert.doesNotMatch(sharedReport, /RAG 检索评测已关联/);
   assert.doesNotMatch(sharedRoute, /fetchLatestResearchQualityReadinessRun/);

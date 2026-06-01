@@ -17,13 +17,13 @@ import { OpportunityList } from "@/features/opportunities/opportunity-list";
 export default function OpportunitiesPage() {
   return (
     <ProductShell
-      active="opportunities"
+      active="tasks"
       title="基础商机推荐"
       description="展示某条研究任务生成的 3-5 个待验证商机草案。"
       action={
         <Button asChild>
           <Link href="/research/tasks">
-            <LocalizedText source="研究任务" />
+            <LocalizedText source="我的研究" />
             <ClipboardList data-icon="inline-end" />
           </Link>
         </Button>

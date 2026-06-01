@@ -15,13 +15,13 @@ import { ProductShell } from "@/features/product-skeleton/components";
 export default function ReportsIndexPage() {
   return (
     <ProductShell
-      active="report"
-      title="最终报告"
-      description="选择一条已完成研究任务后，查看对应的基础报告和待验证商机摘要。"
+      active="tasks"
+      title="选择研究结果"
+      description="报告需要绑定一条真实研究。请先从我的研究里选择已完成任务。"
       action={
         <Button asChild>
           <Link href="/research/tasks">
-            <LocalizedText source="研究任务" />
+            <LocalizedText source="我的研究" />
             <ClipboardList data-icon="inline-end" />
           </Link>
         </Button>
@@ -40,7 +40,7 @@ export default function ReportsIndexPage() {
           <Button asChild>
             <Link href="/research/tasks">
               <ClipboardList data-icon="inline-start" />
-              <LocalizedText source="返回研究任务" />
+              <LocalizedText source="返回我的研究" />
             </Link>
           </Button>
           <Button asChild variant="outline">

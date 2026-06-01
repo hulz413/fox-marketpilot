@@ -304,7 +304,7 @@ function UserMenu() {
         <Button
           variant="ghost"
           size="icon-lg"
-          className="size-10 cursor-pointer rounded-full bg-transparent p-0 hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=open]:bg-transparent"
+          className="size-10 cursor-pointer rounded-full bg-transparent p-0 hover:bg-transparent focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-offset-2 data-[state=open]:bg-transparent"
           aria-label={t("用户菜单")}
         >
           <Avatar size="lg">
@@ -498,7 +498,7 @@ export function TaskStateCards() {
     {
       title: "完成",
       icon: CheckCircle2,
-      body: "完成后进入商机推荐、商机详情和最终报告。",
+      body: "完成后进入研究结果，再切换商机推荐、基础报告和来源线索。",
     },
   ];
 

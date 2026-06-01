@@ -15,7 +15,7 @@ export default function NewResearchPage() {
       action={
         <Button asChild>
           <Link href="/research/tasks">
-            <LocalizedText source="查看任务" />
+            <LocalizedText source="我的研究" />
             <ArrowRight data-icon="inline-end" />
           </Link>
         </Button>

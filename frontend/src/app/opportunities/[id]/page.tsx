@@ -15,13 +15,13 @@ export default async function OpportunityDetailPage({
 
   return (
     <ProductShell
-      active="opportunities"
+      active="tasks"
       title="商机详情"
       description="集中查看单个待验证商机是什么、为什么推荐、适合谁、风险高低和下一步做什么。"
       action={
         <Button asChild>
           <Link href="/research/tasks">
-            <LocalizedText source="研究任务" />
+            <LocalizedText source="我的研究" />
             <ClipboardList data-icon="inline-end" />
           </Link>
         </Button>

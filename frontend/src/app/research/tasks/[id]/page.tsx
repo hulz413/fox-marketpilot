@@ -22,7 +22,7 @@ export default async function ResearchTaskProgressPage({
         <Button asChild>
           <Link href="/research/tasks">
             <ClipboardList data-icon="inline-start" />
-            <LocalizedText source="研究任务" />
+            <LocalizedText source="我的研究" />
           </Link>
         </Button>
       }

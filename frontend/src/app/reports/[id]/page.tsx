@@ -15,7 +15,7 @@ export default async function ReportPage({
 
   return (
     <ProductShell
-      active="report"
+      active="tasks"
       title="基础报告"
       description="基于已生成商机结果汇总推荐排序、风险等级和下一步行动摘要。"
       action={
@@ -23,7 +23,7 @@ export default async function ReportPage({
           <Button asChild variant="outline">
             <Link href="/research/tasks">
               <ClipboardList data-icon="inline-start" />
-              <LocalizedText source="研究任务" />
+              <LocalizedText source="我的研究" />
             </Link>
           </Button>
           <Button asChild>

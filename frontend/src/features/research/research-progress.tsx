@@ -267,7 +267,7 @@ export function ResearchProgressView({ taskUuid }: { taskUuid: string }) {
             <Button asChild variant="ghost">
               <Link href="/research/tasks">
                 <ArrowLeft data-icon="inline-start" />
-                返回任务
+                返回我的研究
               </Link>
             </Button>
           </CardContent>
@@ -478,25 +478,25 @@ function ProgressSummary({
             </Button>
           ) : null}
           {hasAction("view_opportunities") ? (
-            <Button asChild>
+            <Button asChild variant="outline">
               <Link href={`/opportunities?task=${progress.task.uuid}`}>
                 商机推荐
-                <BarChart3 data-icon="inline-end" />
+                <BarChart3 data-icon="inline-start" />
               </Link>
             </Button>
           ) : null}
           {hasAction("view_report") ? (
-            <Button asChild variant="outline">
+            <Button asChild>
               <Link href={`/reports/${progress.task.uuid}`}>
-                <FileText data-icon="inline-start" />
-                基础报告
+                查看研究结果
+                <FileText data-icon="inline-end" />
               </Link>
             </Button>
           ) : null}
           <Button asChild variant="ghost">
             <Link href="/research/tasks">
               <ArrowLeft data-icon="inline-start" />
-              返回任务
+              返回我的研究
             </Link>
           </Button>
         </div>
@@ -512,7 +512,7 @@ function getProgressMessage(
   completedStageCount: number,
 ) {
   if (progress.status === "completed") {
-    return "基础商机推荐已经生成，可以继续查看商机列表、详情、货源候选、竞品参考、验证预算、风险复核、行动计划和基础报告。";
+    return "研究结果已经生成，可以继续阅读基础报告，或切换查看商机列表、详情、货源候选、竞品参考、验证预算、风险复核和行动计划。";
   }
 
   if (progress.status === "failed") {
