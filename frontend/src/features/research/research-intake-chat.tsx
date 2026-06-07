@@ -429,7 +429,7 @@ export function ResearchIntakeChat({
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="h-auto max-w-full whitespace-normal text-left"
+                        className="h-auto max-w-full justify-start whitespace-normal px-4 py-1.5 text-left leading-6"
                         disabled={isSending || isUpdating}
                         onClick={() => void submitMessage(prompt)}
                       >
@@ -497,9 +497,12 @@ export function ResearchIntakeChat({
       </Card>
 
       <aside className="min-h-0 min-w-0 self-stretch">
-        <Card className="h-full min-h-0 rounded-lg">
+        <Card className="h-full min-h-0 gap-4 rounded-lg">
           <CardHeader className="shrink-0">
-            <CardTitle>{t("研究草稿")}</CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <CardTitle>{t("研究草稿")}</CardTitle>
+              <ReadinessBadges conversation={conversation} />
+            </div>
             <CardDescription>
               {t("确认后会创建真实研究任务并进入进度页。")}
             </CardDescription>
@@ -633,7 +636,7 @@ function ChatBubble({
                 type="button"
                 variant="outline"
                 size="xs"
-                className="rounded-full bg-secondary/60 hover:bg-secondary"
+                className="rounded-full bg-secondary/60 font-normal hover:bg-secondary"
                 disabled={suggestionsDisabled}
                 onClick={() => onSuggestionSelect?.(reply)}
               >
@@ -686,24 +689,20 @@ function ReadinessSummary({
   const { t } = useLanguage();
 
   if (!conversation) {
-    return (
-      <div className="rounded-md border bg-muted/30 p-3 text-sm leading-6 text-muted-foreground">
-        {t("发送消息后，商机顾问会先追问；点击「更新需求」后会显示草稿完整度。")}
-      </div>
-    );
+    return null;
+  }
+
+  const hasSummary =
+    conversation.can_create_task ||
+    conversation.missing_fields.length > 0 ||
+    conversation.assumptions.length > 0;
+
+  if (!hasSummary) {
+    return null;
   }
 
   return (
     <div className="grid gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={conversation.can_create_task ? "default" : "secondary"}>
-          {conversation.can_create_task ? t("可启动") : t("需补充")}
-        </Badge>
-        {conversation.status === "converted" ? (
-          <Badge variant="outline">{t("已创建任务")}</Badge>
-        ) : null}
-      </div>
-
       {conversation.can_create_task ? (
         <div className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-3 text-sm leading-6 text-primary">
           <CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
@@ -735,5 +734,28 @@ function ReadinessSummary({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function ReadinessBadges({
+  conversation,
+}: {
+  conversation: ResearchIntakeConversation | null;
+}) {
+  const { t } = useLanguage();
+
+  if (!conversation) {
+    return null;
+  }
+
+  return (
+    <>
+      <Badge variant={conversation.can_create_task ? "default" : "secondary"}>
+        {conversation.can_create_task ? t("可启动") : t("需补充")}
+      </Badge>
+      {conversation.status === "converted" ? (
+        <Badge variant="outline">{t("已创建任务")}</Badge>
+      ) : null}
+    </>
   );
 }
