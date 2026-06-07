@@ -9,6 +9,7 @@ import {
   ChevronsRight,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
   ExternalLink,
   Eye,
   MoreHorizontal,
@@ -207,10 +208,15 @@ function ResearchTaskListLoading() {
       aria-busy="true"
       className="overflow-hidden rounded-lg py-0 shadow-none"
     >
-      <CardHeader className="grid grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto] items-center gap-4 border-b px-5 pt-4 pb-3 [.border-b]:pb-3">
-        <div className="grid gap-2">
-          <CardTitle>{t("研究记录")}</CardTitle>
-          <CardDescription>{t("正在加载真实研究任务。")}</CardDescription>
+      <CardHeader className="grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_auto] gap-4 px-6 pt-6 pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:grid-rows-[auto] sm:items-center">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] grid-rows-[auto] items-center gap-x-3 gap-y-0">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <ClipboardList className="size-5" aria-hidden="true" />
+          </div>
+          <div className="grid min-w-0 gap-1">
+            <CardTitle>{t("研究记录")}</CardTitle>
+            <CardDescription>{t("正在加载真实研究任务。")}</CardDescription>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
           <div className="inline-flex flex-wrap rounded-lg bg-muted/40 p-1">
@@ -360,10 +366,15 @@ export function ResearchTaskList({ statusFilter }: { statusFilter?: string }) {
 
   return (
     <Card className="overflow-hidden rounded-lg py-0 shadow-none">
-      <CardHeader className="grid grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto] items-center gap-4 border-b px-5 pt-4 pb-3 [.border-b]:pb-3">
-        <div className="grid gap-2">
-          <CardTitle>{t("研究记录")}</CardTitle>
-          <CardDescription>{t("统一查看进行中、已完成和失败的真实研究。")}</CardDescription>
+      <CardHeader className="grid grid-cols-[minmax(0,1fr)] grid-rows-[auto_auto] gap-4 px-6 pt-6 pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:grid-rows-[auto] sm:items-center">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] grid-rows-[auto] items-center gap-x-3 gap-y-0">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <ClipboardList className="size-5" aria-hidden="true" />
+          </div>
+          <div className="grid min-w-0 gap-1">
+            <CardTitle>{t("研究记录")}</CardTitle>
+            <CardDescription>{t("统一查看进行中、已完成和失败的真实研究。")}</CardDescription>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
           <div className="inline-flex flex-wrap rounded-lg bg-muted/40 p-1">

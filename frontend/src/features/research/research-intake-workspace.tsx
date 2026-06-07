@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ClipboardList, MessageCircle, Sparkles } from "lucide-react";
+import { ClipboardList, FilePenLine, MessageCircle } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ export function ResearchIntakeWorkspace() {
         >
           {isChatMode ? t("表单模式") : t("聊天模式")}
           {isChatMode ? (
-            <Sparkles data-icon="inline-end" />
+            <FilePenLine data-icon="inline-end" />
           ) : (
             <MessageCircle data-icon="inline-end" />
           )}

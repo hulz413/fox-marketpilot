@@ -12,6 +12,8 @@ function readSource(path) {
 
 test("task list keeps state-driven primary actions and secondary menu", () => {
   const source = readSource("src/features/research/research-task-list.tsx");
+  const tasksPage = readSource("src/app/research/tasks/page.tsx");
+  const shell = readSource("src/features/product-skeleton/components.tsx");
 
   assert.match(source, /查看研究结果/);
   assert.match(source, /查看进度/);
@@ -21,9 +23,12 @@ test("task list keeps state-driven primary actions and secondary menu", () => {
   assert.match(source, /taskStatusFilters/);
   assert.match(source, /TaskTableColumnGroup/);
   assert.match(source, /className="table-fixed"/);
-  assert.match(source, /grid-cols-\[minmax\(0,1fr\)_auto\] grid-rows-\[auto\] items-center/);
-  assert.match(source, /pt-4 pb-3 \[\.border-b\]:pb-3/);
-  assert.match(source, /<div className="grid gap-2">/);
+  assert.match(source, /ClipboardList/);
+  assert.match(source, /sm:grid-cols-\[minmax\(0,1fr\)_auto\] sm:grid-rows-\[auto\] sm:items-center/);
+  assert.match(source, /grid-cols-\[auto_minmax\(0,1fr\)\] grid-rows-\[auto\] items-center/);
+  assert.match(source, /gap-4 px-6 pt-6 pb-0/);
+  assert.doesNotMatch(source, /border-b px-5 pt-4 pb-3/);
+  assert.match(source, /<div className="grid min-w-0 gap-1">/);
   assert.match(source, /defaultResearchTaskPageSize = 10/);
   assert.match(source, /researchTaskPageSizeOptions = \[10, 20, 50, 100\]/);
   assert.match(source, /ResearchTaskPagination/);
@@ -55,6 +60,13 @@ test("task list keeps state-driven primary actions and secondary menu", () => {
   assert.doesNotMatch(source, /Play/);
   assert.doesNotMatch(source, /演示状态/);
   assert.doesNotMatch(source, /TaskReadinessBadge/);
+  assert.doesNotMatch(tasksPage, /TaskStateCards/);
+  assert.doesNotMatch(shell, /function TaskStateCards/);
+  assert.match(shell, /StatusBadgeWithTooltip/);
+  assert.match(shell, /TooltipContent/);
+  assert.match(shell, /任务正在后台生成基础推荐，可进入进度页查看当前阶段。/);
+  assert.match(shell, /生成过程失败，可查看失败原因并重新运行。/);
+  assert.match(shell, /研究已完成，可打开研究结果查看商机推荐、基础报告和来源线索。/);
 });
 
 test("task list shows short dates with full hover timestamps", () => {
@@ -98,6 +110,8 @@ test("global navigation is streamlined around my research", () => {
   assert.doesNotMatch(data, /label: "最终报告"/);
   assert.match(home, /ResearchIntakeWorkspace/);
   assert.match(tasks, /title="我的研究"/);
+  assert.match(tasks, /Sparkles data-icon="inline-end"/);
+  assert.doesNotMatch(tasks, /ArrowRight/);
   assert.match(history, /redirect\("\/research\/tasks\?status=completed"\)/);
   assert.match(opportunities, /active="tasks"/);
   assert.match(reports, /active="tasks"/);
@@ -153,6 +167,8 @@ test("new research form supports sample fill and direct launch", () => {
   assert.match(workspace, /onEditDraft=\{editDraftInForm\}/);
   assert.match(workspace, /initialDraft=\{formDraft\?\.draft\}/);
   assert.match(workspace, /ClipboardList data-icon="inline-end"/);
+  assert.match(workspace, /FilePenLine data-icon="inline-end"/);
+  assert.match(workspace, /MessageCircle data-icon="inline-end"/);
   assert.match(tasks, /ResearchTaskList/);
   assert.doesNotMatch(tasks, /@\/app\/page/);
   assert.match(navData, /href: "\/"/);
@@ -161,7 +177,7 @@ test("new research form supports sample fill and direct launch", () => {
   assert.match(shell, /breadcrumbAction\?: ReactNode/);
   assert.match(shell, /contentScroll\?: boolean/);
   assert.match(shell, /contentScroll \? "lg:overflow-y-auto" : "lg:overflow-hidden"/);
-  assert.match(shell, /sm:justify-between lg:pr-1/);
+  assert.match(shell, /min-h-9 flex-col gap-3 sm:flex-row/);
 });
 
 test("research intake chat creates drafts before starting tasks", () => {
@@ -177,6 +193,8 @@ test("research intake chat creates drafts before starting tasks", () => {
   assert.match(workspace, /hidden=\{!isChatMode\}/);
   assert.match(workspace, /hidden=\{isChatMode\}/);
   assert.match(chat, /聊天对齐需求/);
+  assert.match(chat, /grid-cols-\[auto_minmax\(0,1fr\)\] grid-rows-\[auto\]/);
+  assert.match(chat, /size-10 shrink-0/);
   assert.match(chat, /研究草稿/);
   assert.match(chat, /缺失条件/);
   assert.match(chat, /默认假设/);
@@ -190,6 +208,7 @@ test("research intake chat creates drafts before starting tasks", () => {
   assert.match(chat, /fetchResearchIntakeConversation/);
   assert.match(chat, /INTAKE_CONVERSATION_STORAGE_KEY/);
   assert.match(chat, /sessionStorage/);
+  assert.match(chat, /forgetActiveConversation/);
   assert.match(chat, /正在恢复上次聊天/);
   assert.match(chat, /带入表单编辑/);
   assert.match(chat, /onEditDraft/);
@@ -217,6 +236,13 @@ test("research intake chat creates drafts before starting tasks", () => {
   assert.match(chat, /max-w-\[min\(560px,72%\)\]/);
   assert.match(chat, /sr-only/);
   assert.match(chat, /confirmResearchIntakeConversation/);
+  assert.match(chat, /handleResetConversation/);
+  assert.match(chat, /setConversation\(null\)/);
+  assert.match(chat, /messageMutation\.reset\(\)/);
+  assert.match(chat, /updateMutation\.reset\(\)/);
+  assert.match(chat, /confirmMutation\.reset\(\)/);
+  assert.match(chat, /重置/);
+  assert.match(chat, /ml-auto bg-secondary\/60 hover:bg-secondary/);
   assert.match(chat, /handleMessageKeyDown/);
   assert.match(chat, /event\.nativeEvent\.isComposing/);
   assert.match(chat, /event\.shiftKey/);

@@ -4,17 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
-  AlertTriangle,
   ArrowRight,
   BarChart3,
   Check,
-  CheckCircle2,
   ChevronRight,
   CircleHelp,
   Compass,
   FileText,
   Languages,
-  RefreshCcw,
   SearchCheck,
   TimerReset,
   UserRound,
@@ -49,6 +46,12 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useLanguage } from "@/features/i18n/language-provider";
 import { cn } from "@/lib/utils";
 
@@ -182,7 +185,7 @@ export function ProductShell({
 
           <div className="grid gap-4 p-5 lg:min-h-0 lg:flex-1 lg:grid-rows-[auto_minmax(0,1fr)] lg:gap-0 lg:overflow-hidden">
             <div className="relative z-20 lg:-mx-5 lg:-mt-5 lg:border-b lg:border-border/80 lg:bg-background lg:px-5 lg:pb-3 lg:pt-5 lg:shadow-[0_10px_18px_-16px_rgba(31,39,34,0.28)]">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:pr-1">
+              <div className="flex min-h-9 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:pr-1">
                 <ProductBreadcrumb active={active} title={title} />
                 {breadcrumbAction ? (
                   <div className="flex shrink-0 justify-end">
@@ -407,6 +410,15 @@ const taskStatusLabels: Record<ResearchTaskStatus, string> = {
   failed: "失败",
 };
 
+const taskStatusDescriptions: Record<string, string> = {
+  待启动: "任务已创建，尚未启动后台研究；点击开始研究后会进入队列。",
+  已创建: "任务已创建，尚未启动后台研究；点击开始研究后会进入队列。",
+  排队中: "任务已进入后台队列，稍后开始生成基础推荐。",
+  运行中: "任务正在后台生成基础推荐，可进入进度页查看当前阶段。",
+  已完成: "研究已完成，可打开研究结果查看商机推荐、基础报告和来源线索。",
+  失败: "生成过程失败，可查看失败原因并重新运行。",
+};
+
 const taskStageLabels: Record<ResearchTaskStage, string> = {
   intake: "需求已提交",
   queued: "等待后台执行",
@@ -574,7 +586,7 @@ function TaskContextSummaryCard({
 }
 
 function TaskContextStatusBadge({ status }: { status: ResearchTaskStatus }) {
-  const { t } = useLanguage();
+  const label = taskStatusLabels[status];
   const tone =
     status === "failed"
       ? "border-destructive/30 bg-destructive/10 text-destructive"
@@ -582,15 +594,10 @@ function TaskContextStatusBadge({ status }: { status: ResearchTaskStatus }) {
         ? "border-primary/20 bg-primary/10 text-primary"
         : "border-transparent bg-secondary text-secondary-foreground";
 
-  return (
-    <Badge variant="outline" className={cn("rounded-full px-3 py-1", tone)}>
-      {t(taskStatusLabels[status])}
-    </Badge>
-  );
+  return <StatusBadgeWithTooltip label={label} tone={tone} />;
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const { t } = useLanguage();
   const tone =
     status === "失败"
       ? "border-destructive/30 bg-destructive/10 text-destructive"
@@ -598,10 +605,39 @@ export function StatusBadge({ status }: { status: string }) {
         ? "border-primary/20 bg-primary/10 text-primary"
         : "border-transparent bg-secondary text-secondary-foreground";
 
+  return <StatusBadgeWithTooltip label={status} tone={tone} />;
+}
+
+function StatusBadgeWithTooltip({
+  label,
+  tone,
+}: {
+  label: string;
+  tone: string;
+}) {
+  const { t } = useLanguage();
+  const description =
+    taskStatusDescriptions[label] ?? "展示当前研究任务的运行状态。";
+
   return (
-    <Badge variant="outline" className={cn("rounded-full px-3 py-1", tone)}>
-      {t(status)}
-    </Badge>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            className="inline-flex w-fit rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            tabIndex={0}
+          >
+            <Badge
+              variant="outline"
+              className={cn("rounded-full px-3 py-1", tone)}
+            >
+              {t(label)}
+            </Badge>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>{t(description)}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -626,46 +662,5 @@ export function EmptyResearchState() {
         <DemoResearchSamples />
       </CardContent>
     </Card>
-  );
-}
-
-export function TaskStateCards() {
-  const { t } = useLanguage();
-  const states = [
-    {
-      title: "运行中",
-      icon: RefreshCcw,
-      body: "正在生成基础商机推荐，后续会展示实时阶段和进度。",
-    },
-    {
-      title: "失败",
-      icon: AlertTriangle,
-      body: "生成失败时展示原因，并提供重新运行入口。",
-    },
-    {
-      title: "完成",
-      icon: CheckCircle2,
-      body: "完成后进入研究结果，再切换商机推荐、基础报告和来源线索。",
-    },
-  ];
-
-  return (
-    <div className="grid gap-4 md:grid-cols-3">
-      {states.map((state) => {
-        const Icon = state.icon;
-
-        return (
-          <Card key={state.title} className="rounded-lg">
-            <CardHeader>
-              <div className="mb-2 flex size-9 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <Icon className="size-4" aria-hidden="true" />
-              </div>
-              <CardTitle>{t(state.title)}</CardTitle>
-              <CardDescription>{t(state.body)}</CardDescription>
-            </CardHeader>
-          </Card>
-        );
-      })}
-    </div>
   );
 }

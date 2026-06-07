@@ -9,6 +9,7 @@ import {
   LoaderCircle,
   MessageCircle,
   RefreshCcw,
+  RotateCcw,
   Rocket,
   Send,
   UserRound,
@@ -116,6 +117,18 @@ function rememberActiveConversation(conversation: ResearchIntakeConversation) {
   }
 }
 
+function forgetActiveConversation() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.sessionStorage.removeItem(INTAKE_CONVERSATION_STORAGE_KEY);
+  } catch {
+    // Session restore is best-effort.
+  }
+}
+
 export function ResearchIntakeChat({
   onEditDraft,
 }: {
@@ -212,6 +225,8 @@ export function ResearchIntakeChat({
   const isSending = messageMutation.isPending;
   const isUpdating = updateMutation.isPending;
   const isConfirming = confirmMutation.isPending;
+  const isBusy =
+    isRestoringConversation || isSending || isUpdating || isConfirming;
   const hasUserMessages = Boolean(
     conversation?.messages.some((item) => item.role === "user"),
   );
@@ -322,6 +337,17 @@ export function ResearchIntakeChat({
     void submitMessage(message);
   }
 
+  function handleResetConversation() {
+    setConversation(null);
+    setMessage("");
+    setPendingMessage(null);
+    setError(null);
+    forgetActiveConversation();
+    messageMutation.reset();
+    updateMutation.reset();
+    confirmMutation.reset();
+  }
+
   function handleMessageKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (
       event.key !== "Enter" ||
@@ -338,11 +364,11 @@ export function ResearchIntakeChat({
   return (
     <div className="grid min-h-0 gap-5 lg:h-full lg:overflow-y-auto lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden xl:grid-cols-[minmax(0,1fr)_360px] xl:overflow-y-visible">
       <Card className="min-h-0 min-w-0 rounded-lg lg:h-full">
-        <CardHeader className="shrink-0 gap-3">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <CardHeader className="grid-cols-[auto_minmax(0,1fr)] grid-rows-[auto] items-center gap-x-3 gap-y-0">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <MessageCircle className="size-5" aria-hidden="true" />
           </div>
-          <div>
+          <div className="grid min-w-0 gap-1">
             <CardTitle>{t("聊天对齐需求")}</CardTitle>
             <CardDescription>
               {t("把模糊想法整理为可启动的研究任务草稿。")}
@@ -437,13 +463,7 @@ export function ResearchIntakeChat({
             <div className="flex flex-wrap items-center gap-3">
               <Button
                 type="submit"
-                disabled={
-                  !message.trim() ||
-                  isRestoringConversation ||
-                  isSending ||
-                  isUpdating ||
-                  isConfirming
-                }
+                disabled={!message.trim() || isBusy}
               >
                 {t("发送")}
                 <Send data-icon="inline-end" />
@@ -451,13 +471,7 @@ export function ResearchIntakeChat({
               <Button
                 type="button"
                 variant="outline"
-                disabled={
-                  !hasUserMessages ||
-                  isRestoringConversation ||
-                  isSending ||
-                  isUpdating ||
-                  isConfirming
-                }
+                disabled={!hasUserMessages || isBusy}
                 onClick={() => updateMutation.mutate()}
               >
                 {isUpdating ? t("更新中") : t("更新需求")}
@@ -466,6 +480,16 @@ export function ResearchIntakeChat({
                 ) : (
                   <RefreshCcw data-icon="inline-end" />
                 )}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="ml-auto bg-secondary/60 hover:bg-secondary"
+                disabled={isBusy}
+                onClick={handleResetConversation}
+              >
+                {t("重置")}
+                <RotateCcw data-icon="inline-end" />
               </Button>
             </div>
           </form>

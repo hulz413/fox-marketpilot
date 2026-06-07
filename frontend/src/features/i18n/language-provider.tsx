@@ -68,6 +68,7 @@ const englishCopy: Record<string, string> = {
   "表单模式": "Form mode",
   "更新需求": "Update brief",
   "更新中": "Updating",
+  "重置": "Reset",
   "发送中": "Sending",
   "思考中": "Thinking",
   "可选回复": "Suggested replies",
@@ -129,6 +130,17 @@ const englishCopy: Record<string, string> = {
     "Generating basic opportunity recommendations. Live stages and progress will appear later.",
   "生成失败时展示原因，并提供重新运行入口。":
     "Failure reasons appear here, with a rerun entry point.",
+  "任务已创建，尚未启动后台研究；点击开始研究后会进入队列。":
+    "The task has been created but not started. Start it to enter the worker queue.",
+  "任务已进入后台队列，稍后开始生成基础推荐。":
+    "The task is queued and will start generating basic recommendations shortly.",
+  "任务正在后台生成基础推荐，可进入进度页查看当前阶段。":
+    "The task is generating basic recommendations. Open progress to see the current stage.",
+  "研究已完成，可打开研究结果查看商机推荐、基础报告和来源线索。":
+    "Research is complete. Open results to view opportunities, the basic report, and sources.",
+  "生成过程失败，可查看失败原因并重新运行。":
+    "Generation failed. Review the failure reason and rerun when ready.",
+  "展示当前研究任务的运行状态。": "Shows the current research task status.",
   "完成后进入商机推荐、商机详情和最终报告。":
     "After completion, continue to recommendations, opportunity details, and the final report.",
   "完成后进入研究结果，再切换商机推荐、基础报告和来源线索。":
