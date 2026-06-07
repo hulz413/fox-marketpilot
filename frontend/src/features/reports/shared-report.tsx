@@ -20,6 +20,7 @@ import type {
   ResearchSource,
   SourceSupportLevel,
 } from "@/features/research/api";
+import { formatDateTime } from "@/lib/datetime";
 
 const riskLabels: Record<OpportunityRiskLevel, string> = {
   low: "低风险",
@@ -55,7 +56,7 @@ export function SharedReportView({ share }: { share: PublicReportShare }) {
         <div className="mx-auto grid max-w-6xl gap-5 px-4 py-8 sm:px-6 lg:px-8">
           <div className="flex flex-wrap gap-2">
             <Badge variant="secondary">只读分享报告</Badge>
-            <Badge variant="outline">{formatDate(snapshot.shared_at)}</Badge>
+            <Badge variant="outline">{formatDateTime(snapshot.shared_at)}</Badge>
           </div>
           <div className="grid gap-3">
             <h1 className="max-w-4xl break-words text-3xl font-semibold tracking-normal text-foreground md:text-4xl">
@@ -520,14 +521,4 @@ function groupManyByOpportunity<T extends { opportunity_uuid: string | null }>(
 
 function formatTextList(items: string[]) {
   return items.length ? items.join("、") : "未填写";
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
 }

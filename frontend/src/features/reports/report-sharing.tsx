@@ -26,6 +26,7 @@ import {
   revokeReportShare,
   type ReportShare,
 } from "@/features/research/api";
+import { formatDateTime } from "@/lib/datetime";
 
 export function ReportSharePanel({ taskUuid }: { taskUuid: string }) {
   const queryClient = useQueryClient();
@@ -108,7 +109,7 @@ export function ReportSharePanel({ taskUuid }: { taskUuid: string }) {
                 {latestShare.status === "active" ? "可访问" : "已撤销"}
               </Badge>
               <span className="text-sm text-muted-foreground">
-                {formatDate(latestShare.created_at)}
+                {formatDateTime(latestShare.created_at)}
               </span>
             </div>
             {shareUrl ? (
@@ -194,13 +195,4 @@ function buildShareUrl(token: string) {
   }
 
   return `${window.location.origin}/share/reports/${token}`;
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
 }

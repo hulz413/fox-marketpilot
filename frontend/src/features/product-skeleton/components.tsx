@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
@@ -23,6 +24,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DemoResearchSamples } from "@/features/research/demo-research-samples";
+import {
+  fetchResearchTask,
+  type ResearchTask,
+  type ResearchTaskStage,
+  type ResearchTaskStatus,
+} from "@/features/research/api";
 import {
   Card,
   CardContent,
@@ -358,20 +365,55 @@ function UserMenu() {
 
 export type TaskContextNavKey = "progress" | "opportunities" | "report" | "sources";
 
+const taskStatusLabels: Record<ResearchTaskStatus, string> = {
+  created: "待启动",
+  queued: "排队中",
+  running: "运行中",
+  completed: "已完成",
+  failed: "失败",
+};
+
+const taskStageLabels: Record<ResearchTaskStage, string> = {
+  intake: "需求已提交",
+  queued: "等待后台执行",
+  normalize_intake: "整理研究需求",
+  generate_opportunities: "生成基础推荐",
+  validate_results: "校验推荐结果",
+  persist_results: "保存研究结果",
+  collect_research_sources: "收集公开来源线索",
+  index_rag_evidence: "整理公开来源证据",
+  generate_demand_insights: "生成需求洞察",
+  generate_supply_candidates: "生成货源候选",
+  generate_competitor_references: "生成竞品参考",
+  estimate_validation_budgets: "估算验证预算",
+  review_opportunity_risks: "复核商机风险",
+  create_action_plans: "生成行动计划",
+  completed: "基础推荐已生成",
+  failed: "生成失败",
+};
+
 export function TaskContextNavigation({
   taskUuid,
   active,
   resultsReady = true,
   sourcesCount,
   sourcesHref,
+  task,
 }: {
   taskUuid: string;
   active: TaskContextNavKey;
   resultsReady?: boolean;
   sourcesCount?: number | null;
   sourcesHref?: string;
+  task?: ResearchTask;
 }) {
   const { t } = useLanguage();
+  const taskQuery = useQuery({
+    queryKey: ["research-task-context", taskUuid],
+    queryFn: () => fetchResearchTask(taskUuid),
+    enabled: !task,
+  });
+  const contextTask = task ?? taskQuery.data ?? null;
   const items = [
     {
       key: "progress" as const,
@@ -407,38 +449,109 @@ export function TaskContextNavigation({
   ];
 
   return (
-    <nav
-      aria-label={t("任务上下文导航")}
-      className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2"
-    >
-      {items.map((item) => {
-        const Icon = item.icon;
-        const isActive = active === item.key;
+    <div className="grid gap-3">
+      <TaskContextSummaryCard
+        isLoading={!task && taskQuery.isLoading}
+        task={contextTask}
+      />
+      <nav
+        aria-label={t("任务上下文导航")}
+        className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2"
+      >
+        {items.map((item) => {
+          const Icon = item.icon;
+          const isActive = active === item.key;
 
-        if (!item.enabled) {
+          if (!item.enabled) {
+            return (
+              <Button key={item.key} type="button" variant="ghost" size="sm" disabled>
+                <Icon data-icon="inline-start" />
+                {item.label}
+              </Button>
+            );
+          }
+
           return (
-            <Button key={item.key} type="button" variant="ghost" size="sm" disabled>
-              <Icon data-icon="inline-start" />
-              {item.label}
+            <Button
+              key={item.key}
+              asChild
+              variant={isActive ? "secondary" : "ghost"}
+              size="sm"
+            >
+              <Link href={item.href}>
+                <Icon data-icon="inline-start" />
+                {item.label}
+              </Link>
             </Button>
           );
-        }
+        })}
+      </nav>
+    </div>
+  );
+}
 
-        return (
-          <Button
-            key={item.key}
-            asChild
-            variant={isActive ? "secondary" : "ghost"}
-            size="sm"
-          >
-            <Link href={item.href}>
-              <Icon data-icon="inline-start" />
-              {item.label}
-            </Link>
-          </Button>
-        );
-      })}
-    </nav>
+function TaskContextSummaryCard({
+  isLoading,
+  task,
+}: {
+  isLoading: boolean;
+  task: ResearchTask | null;
+}) {
+  const { t } = useLanguage();
+
+  if (isLoading) {
+    return (
+      <Card className="rounded-lg">
+        <CardHeader className="gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="h-7 w-16 rounded-full bg-muted" />
+            <div className="h-7 w-28 rounded-full bg-muted" />
+          </div>
+          <div className="h-8 max-w-3xl rounded-md bg-muted" />
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  if (!task) {
+    return (
+      <Card className="rounded-lg">
+        <CardHeader>
+          <Badge variant="outline" className="w-fit">
+            {t("当前研究")}
+          </Badge>
+          <CardTitle className="text-2xl">{t("当前研究任务")}</CardTitle>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="rounded-lg">
+      <CardHeader className="gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <TaskContextStatusBadge status={task.status} />
+          <Badge variant="outline">{t(taskStageLabels[task.current_stage])}</Badge>
+        </div>
+        <CardTitle className="text-2xl">{task.title}</CardTitle>
+      </CardHeader>
+    </Card>
+  );
+}
+
+function TaskContextStatusBadge({ status }: { status: ResearchTaskStatus }) {
+  const { t } = useLanguage();
+  const tone =
+    status === "failed"
+      ? "border-destructive/30 bg-destructive/10 text-destructive"
+      : status === "queued" || status === "running"
+        ? "border-primary/20 bg-primary/10 text-primary"
+        : "border-transparent bg-secondary text-secondary-foreground";
+
+  return (
+    <Badge variant="outline" className={cn("rounded-full px-3 py-1", tone)}>
+      {t(taskStatusLabels[status])}
+    </Badge>
   );
 }
 

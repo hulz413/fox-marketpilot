@@ -125,8 +125,8 @@ export function OpportunityList() {
     <div className="grid gap-5">
       {taskNavigation}
       <Card className="overflow-hidden rounded-lg py-0 shadow-none">
-        <CardHeader className="flex flex-row items-center justify-between gap-4 border-b px-5 py-4">
-          <div className="min-w-0">
+        <CardHeader className="flex flex-row items-center justify-between gap-4 px-6 pt-6 pb-0">
+          <div className="grid min-w-0 gap-2">
             <CardTitle>{t("基础商机推荐")}</CardTitle>
             <CardDescription>
               {t("基于任务输入生成的待验证草案，不包含来源或竞品核验。")}

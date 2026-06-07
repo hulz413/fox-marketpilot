@@ -44,6 +44,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useLanguage } from "@/features/i18n/language-provider";
+import { formatDate, formatDateTime } from "@/lib/datetime";
 import {
   EmptyResearchState,
   StatusBadge,
@@ -173,35 +174,9 @@ function matchesTaskStatusFilter(task: ResearchTask, filter: TaskStatusFilter) {
   return true;
 }
 
-function getLocalDateParts(value: string) {
-  const date = new Date(value);
-  const pad = (part: number) => String(part).padStart(2, "0");
-
-  return {
-    year: String(date.getFullYear()),
-    month: pad(date.getMonth() + 1),
-    day: pad(date.getDate()),
-    hour: pad(date.getHours()),
-    minute: pad(date.getMinutes()),
-    second: pad(date.getSeconds()),
-  };
-}
-
-function formatDay(value: string) {
-  const { year, month, day } = getLocalDateParts(value);
-
-  return [year, month, day].join("-");
-}
-
-function formatDateTime(value: string) {
-  const { year, month, day, hour, minute, second } = getLocalDateParts(value);
-
-  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
-}
-
 function TaskCreatedAt({ value }: { value: string }) {
   const { t } = useLanguage();
-  const day = formatDay(value);
+  const day = formatDate(value);
   const fullDate = formatDateTime(value);
 
   return (

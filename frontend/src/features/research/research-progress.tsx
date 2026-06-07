@@ -5,12 +5,9 @@ import Link from "next/link";
 import {
   AlertTriangle,
   ArrowLeft,
-  BarChart3,
   CheckCircle2,
   Circle,
   Clock3,
-  ExternalLink,
-  FileText,
   Play,
   RefreshCcw,
 } from "lucide-react";
@@ -24,49 +21,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { TaskContextNavigation } from "@/features/product-skeleton/components";
+import { formatDateTime } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 
 import {
-  createResearchQualityReadinessRun,
-  fetchLatestResearchQualityReadinessRun,
   fetchResearchProgress,
   startResearchRun,
   type AgentRunEvent,
-  type ResearchQualityReadinessRun,
   type ResearchProgress,
   type ResearchProgressAction,
   type ResearchTaskStage,
   type ResearchTaskStatus,
 } from "./api";
-
-const statusLabels: Record<ResearchTaskStatus, string> = {
-  created: "待启动",
-  queued: "排队中",
-  running: "运行中",
-  completed: "已完成",
-  failed: "失败",
-};
-
-const stageLabels: Record<ResearchTaskStage, string> = {
-  intake: "需求已提交",
-  queued: "等待后台执行",
-  normalize_intake: "整理研究需求",
-  generate_opportunities: "生成基础推荐",
-  validate_results: "校验推荐结果",
-  persist_results: "保存研究结果",
-  collect_research_sources: "收集公开来源线索",
-  index_rag_evidence: "整理公开来源证据",
-  generate_demand_insights: "生成需求洞察",
-  generate_supply_candidates: "生成货源候选",
-  generate_competitor_references: "生成竞品参考",
-  estimate_validation_budgets: "估算验证预算",
-  review_opportunity_risks: "复核商机风险",
-  create_action_plans: "生成行动计划",
-  completed: "基础推荐已生成",
-  failed: "生成失败",
-};
 
 const stageTimeline: Array<{
   key: ResearchTaskStage;
@@ -145,18 +112,12 @@ const stageTimeline: Array<{
   },
 ];
 
-function formatDateTime(value: string | null) {
+function formatOptionalDateTime(value: string | null) {
   if (!value) {
     return null;
   }
 
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(new Date(value));
+  return formatDateTime(value);
 }
 
 function formatDuration(durationMs: number | null) {
@@ -165,10 +126,10 @@ function formatDuration(durationMs: number | null) {
   }
 
   if (durationMs < 1000) {
-    return `${durationMs} ms`;
+    return `${durationMs}ms`;
   }
 
-  return `${(durationMs / 1000).toFixed(1)} s`;
+  return `${(durationMs / 1000).toFixed(1)}s`;
 }
 
 function formatError(error: unknown) {
@@ -207,21 +168,6 @@ export function ResearchProgressView({ taskUuid }: { taskUuid: string }) {
         }),
         queryClient.invalidateQueries({ queryKey: ["research-tasks"] }),
       ]);
-    },
-  });
-  const readinessQuery = useQuery({
-    queryKey: ["research-readiness", taskUuid],
-    queryFn: () => fetchLatestResearchQualityReadinessRun(taskUuid),
-    enabled: progress?.status === "completed",
-    refetchInterval: (query) =>
-      query.state.data?.status === "running" ? 2000 : false,
-  });
-  const readinessMutation = useMutation({
-    mutationFn: createResearchQualityReadinessRun,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["research-readiness", taskUuid],
-      });
     },
   });
 
@@ -282,119 +228,20 @@ export function ResearchProgressView({ taskUuid }: { taskUuid: string }) {
         active="progress"
         resultsReady={progress.status === "completed"}
         sourcesHref={`/reports/${progress.task.uuid}#sources`}
+        task={progress.task}
         taskUuid={progress.task.uuid}
       />
-      <ProgressSummary
+      <ProgressActions
         progress={progress}
         isStarting={startRunMutation.isPending}
         onStart={() => startRunMutation.mutate(progress.task.uuid)}
       />
-      {progress.status === "completed" ? (
-        <ReadinessPanel
-          error={readinessQuery.error}
-          isLoading={readinessQuery.isLoading}
-          isRunning={readinessMutation.isPending}
-          onRun={() => readinessMutation.mutate(progress.task.uuid)}
-          readiness={readinessQuery.data ?? null}
-        />
-      ) : null}
       <StageTimeline progress={progress} />
     </div>
   );
 }
 
-function ReadinessPanel({
-  error,
-  isLoading,
-  isRunning,
-  onRun,
-  readiness,
-}: {
-  error: unknown;
-  isLoading: boolean;
-  isRunning: boolean;
-  onRun: () => void;
-  readiness: ResearchQualityReadinessRun | null;
-}) {
-  const status = readiness?.stale ? "stale" : readiness?.overall_status ?? "unchecked";
-  const checks = readiness?.checks ?? [];
-
-  return (
-    <Card className="rounded-lg">
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div>
-          <CardTitle>演示就绪检查</CardTitle>
-          <CardDescription>
-            内部检查研究完整性、RAG 证据和生成内容边界，不作为用户侧商机评分。
-          </CardDescription>
-        </div>
-        <ReadinessBadge status={status} />
-      </CardHeader>
-      <CardContent className="grid gap-4">
-        {isLoading ? (
-          <div className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
-            正在读取最近一次演示就绪检查。
-          </div>
-        ) : null}
-        {error ? (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-            {formatError(error)}
-          </div>
-        ) : null}
-        {!isLoading && !readiness ? (
-          <div className="rounded-md border border-dashed p-4 text-sm leading-6 text-muted-foreground">
-            当前任务尚未运行演示就绪检查。运行后会汇总主流程完整性、RAG 索引健康、RAG 检索评测和生成内容 smoke check。
-          </div>
-        ) : null}
-        {readiness ? (
-          <>
-            <section className="rounded-lg border bg-background p-4">
-              <p className="font-semibold">{readiness.summary}</p>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                最近检查：{formatDateTime(readiness.completed_at ?? readiness.updated_at)}
-                {readiness.stale ? "；任务已重新运行，请重新检查。" : ""}
-              </p>
-              {readiness.error_summary ? (
-                <p className="mt-2 text-sm text-destructive">
-                  {readiness.error_summary}
-                </p>
-              ) : null}
-            </section>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {checks.map((check) => (
-                <section key={check.key} className="rounded-lg border bg-background p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 className="font-semibold">{check.label}</h2>
-                    <CheckStatusBadge status={check.status} />
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {check.summary}
-                  </p>
-                  {check.reasons.length ? (
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {check.reasons[0]}
-                    </p>
-                  ) : null}
-                </section>
-              ))}
-            </div>
-          </>
-        ) : null}
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" disabled={isRunning} onClick={onRun}>
-            <RefreshCcw data-icon="inline-start" />
-            {isRunning ? "正在检查" : readiness ? "重新运行检查" : "运行检查"}
-          </Button>
-          {readiness?.rag_evaluation_run_uuid ? (
-            <Badge variant="outline">RAG 检索评测已关联</Badge>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ProgressSummary({
+function ProgressActions({
   progress,
   isStarting,
   onStart,
@@ -405,29 +252,15 @@ function ProgressSummary({
 }) {
   const hasAction = (action: ResearchProgressAction) =>
     progress.available_actions.includes(action);
-  const eventsByStage = new Map(
-    progress.events.map((event) => [event.stage, event] as const),
-  );
-  const completedStageCount = stageTimeline.filter(
-    (stage) => getStageState(progress, stage.key, eventsByStage.get(stage.key)) === "completed",
-  ).length;
-  const progressMessage = getProgressMessage(progress, completedStageCount);
+  const canStart = hasAction("start");
+  const canRerun = hasAction("rerun");
+
+  if (!progress.failure_reason && !canStart && !canRerun) {
+    return null;
+  }
 
   return (
     <Card className="rounded-lg">
-      <CardHeader className="gap-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge status={progress.status} />
-          <Badge variant="outline">{stageLabels[progress.current_stage]}</Badge>
-          {progress.run_id ? <Badge variant="secondary">run 已创建</Badge> : null}
-        </div>
-        <div>
-          <CardTitle className="text-2xl">{progress.task.title}</CardTitle>
-          <CardDescription className="mt-2 leading-6">
-            {progress.task.brief}
-          </CardDescription>
-        </div>
-      </CardHeader>
       <CardContent className="grid gap-5">
         {progress.failure_reason ? (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
@@ -435,38 +268,14 @@ function ProgressSummary({
           </div>
         ) : null}
 
-        <section className="rounded-lg border bg-primary/5 p-4">
-          <p className="text-sm font-semibold text-primary">
-            当前阶段：{stageLabels[progress.current_stage]}
-          </p>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {progressMessage}
-          </p>
-        </section>
-
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <InfoBlock label="当前阶段" value={stageLabels[progress.current_stage]} />
-          <InfoBlock
-            label="已完成阶段"
-            value={`${completedStageCount}/${stageTimeline.length}`}
-          />
-          <InfoBlock label="预算" value={progress.task.budget ?? "未填写"} />
-          <InfoBlock
-            label="目标渠道"
-            value={progress.task.target_channels.join("、") || "未填写"}
-          />
-        </div>
-
-        <Separator />
-
         <div className="flex flex-wrap gap-2">
-          {hasAction("start") ? (
+          {canStart ? (
             <Button type="button" disabled={isStarting} onClick={onStart}>
               <Play data-icon="inline-start" />
               {isStarting ? "正在启动" : "启动研究"}
             </Button>
           ) : null}
-          {hasAction("rerun") ? (
+          {canRerun ? (
             <Button
               type="button"
               variant="outline"
@@ -477,85 +286,9 @@ function ProgressSummary({
               {isStarting ? "正在启动" : "重新运行"}
             </Button>
           ) : null}
-          {hasAction("view_opportunities") ? (
-            <Button asChild variant="outline">
-              <Link href={`/opportunities?task=${progress.task.uuid}`}>
-                商机推荐
-                <BarChart3 data-icon="inline-start" />
-              </Link>
-            </Button>
-          ) : null}
-          {hasAction("view_report") ? (
-            <Button asChild>
-              <Link href={`/reports/${progress.task.uuid}`}>
-                查看研究结果
-                <FileText data-icon="inline-end" />
-              </Link>
-            </Button>
-          ) : null}
-          <Button asChild variant="ghost">
-            <Link href="/research/tasks">
-              <ArrowLeft data-icon="inline-start" />
-              返回我的研究
-            </Link>
-          </Button>
         </div>
-
-        <RunDetails progress={progress} />
       </CardContent>
     </Card>
-  );
-}
-
-function getProgressMessage(
-  progress: ResearchProgress,
-  completedStageCount: number,
-) {
-  if (progress.status === "completed") {
-    return "研究结果已经生成，可以继续阅读基础报告，或切换查看商机列表、详情、货源候选、竞品参考、验证预算、风险复核和行动计划。";
-  }
-
-  if (progress.status === "failed") {
-    return "本次运行没有完成，可以查看失败原因后重新运行。";
-  }
-
-  if (progress.status === "created") {
-    return "需求已经保存，启动研究后会进入后台队列并生成基础商机推荐。";
-  }
-
-  return `系统正在推进研究流程，已完成 ${completedStageCount} 个阶段。你可以停留在这里等待状态刷新。`;
-}
-
-function RunDetails({ progress }: { progress: ResearchProgress }) {
-  const latestEvent = progress.events[progress.events.length - 1];
-  const latestStageLabel = latestEvent
-    ? stageLabels[latestEvent.stage as ResearchTaskStage] ?? latestEvent.stage
-    : "暂无事件";
-
-  return (
-    <section className="rounded-lg border bg-background p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="font-semibold">运行详情</h2>
-          <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            调试信息用于排障，不影响用户继续查看商机结果。
-          </p>
-        </div>
-        {progress.trace_url ? (
-          <Button asChild variant="outline" size="sm">
-            <a href={progress.trace_url} target="_blank" rel="noreferrer">
-              <ExternalLink data-icon="inline-start" />
-              LangSmith
-            </a>
-          </Button>
-        ) : null}
-      </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
-        <InfoBlock label="运行 ID" value={progress.run_id ?? "尚未启动"} />
-        <InfoBlock label="Trace" value={progress.trace_id ?? "未启用或未生成"} />
-        <InfoBlock label="最近事件" value={latestStageLabel} />
-      </div>
-    </section>
   );
 }
 
@@ -567,13 +300,42 @@ function StageTimeline({ progress }: { progress: ResearchProgress }) {
     Boolean(progress.run_id) &&
     progress.events.length === 0 &&
     progress.status !== "created";
+  const firstWorkerEvent = progress.events.find(
+    (item) => item.stage !== "opportunity_research",
+  );
+  const orderedStages = stageTimeline
+    .map((stage, index) => {
+      const event = eventsByStage.get(stage.key);
+
+      return {
+        event,
+        index,
+        sortTime: getStageSortTime(progress, stage.key, event, firstWorkerEvent),
+        stage,
+      };
+    })
+    .sort((left, right) => {
+      if (left.sortTime === 0 && right.sortTime !== 0) {
+        return -1;
+      }
+
+      if (left.sortTime !== 0 && right.sortTime === 0) {
+        return 1;
+      }
+
+      if (left.sortTime !== right.sortTime) {
+        return right.sortTime - left.sortTime;
+      }
+
+      return right.index - left.index;
+    });
 
   return (
     <Card className="rounded-lg">
       <CardHeader>
         <CardTitle>阶段时间线</CardTitle>
         <CardDescription>
-          展示当前 run 的阶段事件；重新运行后默认只看最新 run。
+          展示当前 run 的阶段事件；未开始的阶段在前，已有事件按最新时间倒序。
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -584,10 +346,10 @@ function StageTimeline({ progress }: { progress: ResearchProgress }) {
         ) : null}
 
         <div className="grid gap-3">
-          {stageTimeline.map((stage) => (
+          {orderedStages.map(({ event, stage }) => (
             <StageRow
               key={stage.key}
-              event={eventsByStage.get(stage.key)}
+              event={event}
               progress={progress}
               stage={stage}
             />
@@ -598,60 +360,37 @@ function StageTimeline({ progress }: { progress: ResearchProgress }) {
   );
 }
 
-type ReadinessDisplayStatus =
-  | "ready"
-  | "warning"
-  | "failed"
-  | "stale"
-  | "unchecked";
+function getStageSortTime(
+  progress: ResearchProgress,
+  stage: ResearchTaskStage,
+  event: AgentRunEvent | undefined,
+  firstWorkerEvent: AgentRunEvent | undefined,
+) {
+  if (event?.completed_at) {
+    return Date.parse(event.completed_at);
+  }
 
-const readinessStatusLabels: Record<ReadinessDisplayStatus, string> = {
-  ready: "可演示",
-  warning: "需复查",
-  failed: "检查失败",
-  stale: "已过期",
-  unchecked: "未检查",
-};
+  if (event?.started_at) {
+    return Date.parse(event.started_at);
+  }
 
-function ReadinessBadge({ status }: { status: ReadinessDisplayStatus }) {
-  const tone =
-    status === "ready"
-      ? "border-primary/20 bg-primary/10 text-primary"
-      : status === "failed"
-        ? "border-destructive/30 bg-destructive/10 text-destructive"
-        : status === "warning" || status === "stale"
-          ? "border-amber-500/30 bg-amber-500/10 text-amber-700"
-          : "border-muted-foreground/20 bg-muted text-muted-foreground";
+  if (stage === "completed" && progress.status === "completed") {
+    return Date.parse(progress.task.updated_at);
+  }
 
-  return (
-    <Badge variant="outline" className={cn("rounded-full px-3 py-1", tone)}>
-      {readinessStatusLabels[status]}
-    </Badge>
-  );
-}
+  if (stage === "failed" && progress.status === "failed") {
+    return Date.parse(progress.task.updated_at);
+  }
 
-const checkStatusLabels: Record<string, string> = {
-  pass: "通过",
-  warning: "警告",
-  failed: "失败",
-  skipped: "跳过",
-};
+  if (stage === "queued" && progress.status !== "created") {
+    return Date.parse(firstWorkerEvent?.started_at ?? progress.task.updated_at);
+  }
 
-function CheckStatusBadge({ status }: { status: string }) {
-  const tone =
-    status === "pass"
-      ? "border-primary/20 bg-primary/10 text-primary"
-      : status === "failed"
-        ? "border-destructive/30 bg-destructive/10 text-destructive"
-        : status === "warning"
-          ? "border-amber-500/30 bg-amber-500/10 text-amber-700"
-          : "border-muted-foreground/20 bg-muted text-muted-foreground";
+  if (isLiveStatus(progress.status) && progress.current_stage === stage) {
+    return Date.parse(progress.task.updated_at);
+  }
 
-  return (
-    <Badge variant="outline" className={cn("rounded-full px-2.5 py-0.5", tone)}>
-      {checkStatusLabels[status] ?? status}
-    </Badge>
-  );
+  return 0;
 }
 
 function StageRow({
@@ -664,8 +403,8 @@ function StageRow({
   stage: (typeof stageTimeline)[number];
 }) {
   const state = getStageState(progress, stage.key, event);
-  const startedAt = formatDateTime(event?.started_at ?? null);
-  const completedAt = formatDateTime(event?.completed_at ?? null);
+  const startedAt = formatOptionalDateTime(event?.started_at ?? null);
+  const completedAt = formatOptionalDateTime(event?.completed_at ?? null);
   const firstWorkerEvent = progress.events.find(
     (item) => item.stage !== "opportunity_research",
   );
@@ -674,7 +413,7 @@ function StageRow({
       ? formatDateTime(progress.task.updated_at)
       : stage.key === "queued" && state === "completed"
         ? formatDateTime(firstWorkerEvent?.started_at ?? progress.task.updated_at)
-      : null;
+        : null;
   const duration = formatDuration(event?.duration_ms ?? null);
 
   return (
@@ -777,28 +516,4 @@ function StageIcon({ state }: { state: StageState }) {
   }
 
   return <Circle className="mt-1 size-5 text-muted-foreground" aria-hidden="true" />;
-}
-
-function StatusBadge({ status }: { status: ResearchTaskStatus }) {
-  const tone =
-    status === "failed"
-      ? "border-destructive/30 bg-destructive/10 text-destructive"
-      : status === "queued" || status === "running"
-        ? "border-primary/20 bg-primary/10 text-primary"
-        : "border-transparent bg-secondary text-secondary-foreground";
-
-  return (
-    <Badge variant="outline" className={cn("rounded-full px-3 py-1", tone)}>
-      {statusLabels[status]}
-    </Badge>
-  );
-}
-
-function InfoBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <section className="rounded-lg border bg-background p-4">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-2 break-words text-sm font-semibold">{value}</p>
-    </section>
-  );
 }

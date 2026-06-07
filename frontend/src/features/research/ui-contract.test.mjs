@@ -59,14 +59,29 @@ test("task list keeps state-driven primary actions and secondary menu", () => {
 
 test("task list shows short dates with full hover timestamps", () => {
   const source = readSource("src/features/research/research-task-list.tsx");
+  const datetime = readSource("src/lib/datetime.ts");
 
-  assert.match(source, /function getLocalDateParts/);
-  assert.match(source, /function formatDay/);
-  assert.match(source, /function formatDateTime/);
-  assert.match(source, /\[year, month, day\]\.join\("-"\)/);
-  assert.match(source, /\$\{year\}-\$\{month\}-\$\{day\} \$\{hour\}:\$\{minute\}:\$\{second\}/);
+  assert.match(source, /formatDate, formatDateTime/);
+  assert.match(datetime, /export function formatDate/);
+  assert.match(datetime, /export function formatDateTime/);
+  assert.match(datetime, /\$\{year\}-\$\{month\}-\$\{day\}/);
+  assert.match(datetime, /\$\{year\}-\$\{month\}-\$\{day\} \$\{hour\}:\$\{minute\}:\$\{second\}/);
   assert.match(source, /title=\{fullDate\}/);
   assert.match(source, /<TaskCreatedAt value=\{task\.created_at\}/);
+});
+
+test("research timestamps use yyyy-mm-dd and compact durations", () => {
+  const progress = readSource("src/features/research/research-progress.tsx");
+  const sharing = readSource("src/features/reports/report-sharing.tsx");
+  const sharedReport = readSource("src/features/reports/shared-report.tsx");
+
+  assert.match(progress, /formatDateTime/);
+  assert.match(progress, /\$\{durationMs\}ms/);
+  assert.match(progress, /\$\{\(durationMs \/ 1000\)\.toFixed\(1\)\}s/);
+  assert.doesNotMatch(progress, /\$\{durationMs\} ms/);
+  assert.doesNotMatch(progress, /toFixed\(1\)\} s/);
+  assert.match(sharing, /formatDateTime\(latestShare\.created_at\)/);
+  assert.match(sharedReport, /formatDateTime\(snapshot\.shared_at\)/);
 });
 
 test("global navigation is streamlined around my research", () => {
@@ -152,6 +167,9 @@ test("result pages include task context and source panels", () => {
   assert.match(detail, /OpportunityRiskPanel/);
   assert.match(detail, /OpportunityActionPlanPanel/);
   assert.match(shell, /TaskContextNavigation/);
+  assert.match(shell, /fetchResearchTask/);
+  assert.match(shell, /TaskContextSummaryCard/);
+  assert.match(shell, /TaskContextSummaryCard[\s\S]*<nav/);
 });
 
 test("task context tabs stay mounted during task surface loading states", () => {
@@ -164,6 +182,16 @@ test("task context tabs stay mounted during task surface loading states", () => 
   assert.match(report, /const taskNavigation = \(/);
   assert.match(report, /if \(isLoading\)[\s\S]*\{taskNavigation\}/);
   assert.match(progress, /if \(isLoading\)[\s\S]*active="progress"/);
+});
+
+test("opportunity list title aligns with progress card header", () => {
+  const opportunities = readSource("src/features/opportunities/opportunity-list.tsx");
+  const progress = readSource("src/features/research/research-progress.tsx");
+
+  assert.match(opportunities, /px-6 pt-6 pb-0/);
+  assert.match(opportunities, /grid min-w-0 gap-2/);
+  assert.doesNotMatch(opportunities, /border-b px-5 py-4/);
+  assert.match(progress, /<CardTitle>阶段时间线<\/CardTitle>/);
 });
 
 test("demand insights keep cautious copy and non-blocking states", () => {
@@ -218,6 +246,8 @@ test("research progress includes RAG evidence indexing stage", () => {
   assert.match(progress, /index_rag_evidence/);
   assert.match(progress, /整理公开来源证据/);
   assert.match(progress, /待验证证据/);
+  assert.match(progress, /未开始的阶段在前/);
+  assert.match(progress, /sortTime/);
   assert.match(taskList, /整理公开来源证据/);
 });
 
@@ -280,7 +310,7 @@ test("report sharing keeps online share actions and read-only public report", ()
   assert.doesNotMatch(sharedReport, /删除任务/);
 });
 
-test("research readiness stays internal and visible only in app surfaces", () => {
+test("research readiness stays internal and hidden from progress/share surfaces", () => {
   const progress = readSource("src/features/research/research-progress.tsx");
   const taskList = readSource("src/features/research/research-task-list.tsx");
   const sharedReport = readSource("src/features/reports/shared-report.tsx");
@@ -290,10 +320,16 @@ test("research readiness stays internal and visible only in app surfaces", () =>
   assert.match(api, /ResearchQualityReadinessRun/);
   assert.match(api, /createResearchQualityReadinessRun/);
   assert.match(api, /fetchLatestResearchQualityReadinessRun/);
-  assert.match(progress, /演示就绪检查/);
-  assert.match(progress, /运行检查/);
-  assert.match(progress, /RAG 检索评测已关联/);
-  assert.match(progress, /不作为用户侧商机评分/);
+  assert.doesNotMatch(progress, /查看研究结果/);
+  assert.doesNotMatch(progress, /fetchLatestResearchQualityReadinessRun/);
+  assert.doesNotMatch(progress, /演示就绪检查/);
+  assert.doesNotMatch(progress, /运行检查/);
+  assert.doesNotMatch(progress, /RAG 检索评测已关联/);
+  assert.doesNotMatch(progress, /不作为用户侧商机评分/);
+  assert.doesNotMatch(progress, /运行详情/);
+  assert.doesNotMatch(progress, /运行 ID/);
+  assert.doesNotMatch(progress, /Trace/);
+  assert.doesNotMatch(progress, /当前阶段：/);
   assert.doesNotMatch(taskList, /fetchLatestResearchQualityReadinessRun/);
   assert.doesNotMatch(taskList, /演示状态/);
   assert.doesNotMatch(taskList, /可演示/);
