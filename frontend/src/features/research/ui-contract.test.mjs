@@ -315,13 +315,35 @@ test("research readiness stays internal and hidden from progress/share surfaces"
   const taskList = readSource("src/features/research/research-task-list.tsx");
   const sharedReport = readSource("src/features/reports/shared-report.tsx");
   const sharedRoute = readSource("src/app/share/reports/[token]/page.tsx");
+  const shell = readSource("src/features/product-skeleton/components.tsx");
+  const navData = readSource("src/features/product-skeleton/data.ts");
+  const internalRoute = readSource("src/app/internal/quality/page.tsx");
+  const internalPanel = readSource(
+    "src/features/internal-quality/internal-quality-panel.tsx",
+  );
   const api = readSource("src/features/research/api.ts");
 
   assert.match(api, /ResearchQualityReadinessRun/);
   assert.match(api, /createResearchQualityReadinessRun/);
   assert.match(api, /fetchLatestResearchQualityReadinessRun/);
+  assert.match(api, /GenerationEvaluationRun/);
+  assert.match(api, /createGenerationEvaluationRun/);
+  assert.match(api, /fetchLatestGenerationEvaluationRun/);
+  assert.match(internalRoute, /InternalQualityPanel/);
+  assert.match(internalPanel, /内部质量复查/);
+  assert.match(internalPanel, /createResearchQualityReadinessRun/);
+  assert.match(internalPanel, /fetchLatestResearchQualityReadinessRun/);
+  assert.match(internalPanel, /createGenerationEvaluationRun/);
+  assert.match(internalPanel, /fetchLatestGenerationEvaluationRun/);
+  assert.match(internalPanel, /RAG 质量摘要/);
+  assert.match(internalPanel, /不代表商机、需求、供给、利润或市场机会已经被证明/);
+  assert.match(shell, /href="\/internal\/quality"/);
+  assert.match(shell, /内部质量复查/);
+  assert.doesNotMatch(navData, /internal\/quality/);
   assert.doesNotMatch(progress, /查看研究结果/);
   assert.doesNotMatch(progress, /fetchLatestResearchQualityReadinessRun/);
+  assert.doesNotMatch(progress, /fetchLatestGenerationEvaluationRun/);
+  assert.doesNotMatch(progress, /createGenerationEvaluationRun/);
   assert.doesNotMatch(progress, /演示就绪检查/);
   assert.doesNotMatch(progress, /运行检查/);
   assert.doesNotMatch(progress, /RAG 检索评测已关联/);
@@ -331,12 +353,15 @@ test("research readiness stays internal and hidden from progress/share surfaces"
   assert.doesNotMatch(progress, /Trace/);
   assert.doesNotMatch(progress, /当前阶段：/);
   assert.doesNotMatch(taskList, /fetchLatestResearchQualityReadinessRun/);
+  assert.doesNotMatch(taskList, /fetchLatestGenerationEvaluationRun/);
   assert.doesNotMatch(taskList, /演示状态/);
   assert.doesNotMatch(taskList, /可演示/);
   assert.doesNotMatch(taskList, /需复查/);
   assert.doesNotMatch(sharedReport, /演示就绪检查/);
+  assert.doesNotMatch(sharedReport, /生成质量评测/);
   assert.doesNotMatch(sharedReport, /RAG 检索评测已关联/);
   assert.doesNotMatch(sharedRoute, /fetchLatestResearchQualityReadinessRun/);
+  assert.doesNotMatch(sharedRoute, /fetchLatestGenerationEvaluationRun/);
 });
 
 test("interactive controls use pointer cursor while disabled controls do not", () => {

@@ -2,13 +2,17 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 import json
+from uuid import UUID, uuid4
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
+from app.db.session import get_db
+from app.main import app
 from app.modules.action_plans.models import ActionPlan
 from app.modules.competitor_references.models import CompetitorReference
 from app.modules.demand_insights.models import OpportunityDemandInsight
@@ -17,6 +21,7 @@ from app.modules.generation_quality_evaluation import service as evaluation_serv
 from app.modules.generation_quality_evaluation.models import (
     GenerationEvaluationCase,
     GenerationEvaluationResult,
+    GenerationEvaluationRun,
 )
 from app.modules.generation_quality_evaluation.schemas import (
     GenerationEvaluationOverallStatus,
@@ -53,6 +58,38 @@ def session_factory() -> Iterator[sessionmaker[Session]]:
 
     Base.metadata.create_all(bind=engine)
     yield testing_session_local
+    Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture()
+def api_client() -> Iterator[tuple[TestClient, sessionmaker[Session]]]:
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    testing_session_local = sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=engine,
+    )
+
+    Base.metadata.create_all(bind=engine)
+
+    def override_get_db() -> Iterator[Session]:
+        db = testing_session_local()
+
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    with TestClient(app) as test_client:
+        yield test_client, testing_session_local
+
+    app.dependency_overrides.clear()
     Base.metadata.drop_all(bind=engine)
 
 
@@ -306,6 +343,98 @@ def test_run_generation_evaluation_persists_metrics_and_safe_output(
     assert "opportunity_id" not in exported_json
     assert "Traceback" not in exported_json
     assert "sk-secret" not in exported_json
+
+
+def test_generation_evaluation_api_create_read_latest_and_stale(
+    api_client: tuple[TestClient, sessionmaker[Session]],
+) -> None:
+    test_client, session_factory = api_client
+
+    with session_factory() as db:
+        task = create_completed_task_with_generation_outputs(db)
+        task_uuid = task.uuid
+
+    create_response = test_client.post(
+        f"/api/v1/research-tasks/{task_uuid}/generation-evaluation-runs"
+    )
+
+    assert create_response.status_code == 201
+    evaluation_run = create_response.json()
+    assert "id" not in evaluation_run
+    assert evaluation_run["research_task_uuid"] == str(task_uuid)
+    assert evaluation_run["status"] == "completed"
+    assert evaluation_run["overall_status"] == "passed"
+    assert evaluation_run["case_total"] == 8
+    assert evaluation_run["case_passed_count"] == 8
+    assert evaluation_run["summary_metrics"]["status_counts"]["passed"] == 8
+    assert evaluation_run["stale"] is False
+
+    serialized = json.dumps(evaluation_run, ensure_ascii=False)
+    assert "research_task_id" not in serialized
+    assert "case_snapshot" not in serialized
+    assert "Traceback" not in serialized
+    assert "sk-secret" not in serialized
+    assert "完整 prompt" not in serialized
+
+    latest_response = test_client.get(
+        f"/api/v1/research-tasks/{task_uuid}/generation-evaluation-runs/latest"
+    )
+
+    assert latest_response.status_code == 200
+    assert latest_response.json()["uuid"] == evaluation_run["uuid"]
+
+    with session_factory() as db:
+        task = db.execute(
+            select(ResearchTask).where(ResearchTask.uuid == UUID(str(task_uuid)))
+        ).scalar_one()
+        task.run_id = "newer-generation-run"
+        db.add(task)
+        db.commit()
+
+    stale_response = test_client.get(
+        f"/api/v1/research-tasks/{task_uuid}/generation-evaluation-runs/latest"
+    )
+
+    assert stale_response.status_code == 200
+    assert stale_response.json()["stale"] is True
+
+
+def test_generation_evaluation_api_rejects_unfinished_and_unknown_tasks(
+    api_client: tuple[TestClient, sessionmaker[Session]],
+) -> None:
+    test_client, session_factory = api_client
+
+    with session_factory() as db:
+        task = ResearchTask(
+            title="未完成任务",
+            brief="还没完成。",
+            status="created",
+            current_stage="intake",
+        )
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+        task_uuid = task.uuid
+
+    response = test_client.post(
+        f"/api/v1/research-tasks/{task_uuid}/generation-evaluation-runs"
+    )
+    missing_response = test_client.get(
+        f"/api/v1/research-tasks/{uuid4()}/generation-evaluation-runs/latest"
+    )
+
+    assert response.status_code == 409
+    assert "尚未完成" in response.json()["detail"]
+    assert missing_response.status_code == 404
+
+    with session_factory() as db:
+        task = db.execute(
+            select(ResearchTask).where(ResearchTask.uuid == UUID(str(task_uuid)))
+        ).scalar_one()
+        runs = db.execute(select(GenerationEvaluationRun)).scalars().all()
+
+    assert task.status == "created"
+    assert runs == []
 
 
 def test_generation_evaluation_rejects_unfinished_task_without_state_change(

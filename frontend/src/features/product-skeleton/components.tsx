@@ -325,6 +325,13 @@ function UserMenu() {
         <DropdownMenuLabel>{t("演示用户")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
+          <DropdownMenuItem asChild>
+            <Link href="/internal/quality">
+              <SearchCheck aria-hidden="true" />
+              <span>{t("内部质量复查")}</span>
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <Languages aria-hidden="true" />

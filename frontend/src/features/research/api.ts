@@ -388,12 +388,49 @@ export type ResearchQualityReadinessRun = {
   checks: ResearchQualityReadinessCheck[];
   metrics: Record<string, unknown>;
   rag_evaluation_run_uuid: string | null;
+  generation_evaluation_run_uuid: string | null;
   trace_id: string | null;
   trace_url: string | null;
   stale: boolean;
   started_at: string;
   completed_at: string | null;
   error_summary: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type GenerationEvaluationRunStatus =
+  | "running"
+  | "completed"
+  | "partial"
+  | "failed";
+export type GenerationEvaluationOverallStatus =
+  | "passed"
+  | "warning"
+  | "failed";
+
+export type GenerationEvaluationRun = {
+  uuid: string;
+  research_task_uuid: string;
+  name: string;
+  status: GenerationEvaluationRunStatus;
+  overall_status: GenerationEvaluationOverallStatus;
+  research_run_id: string | null;
+  trace_id: string | null;
+  trace_url: string | null;
+  config: Record<string, unknown>;
+  summary_metrics: Record<string, unknown>;
+  summary: string;
+  case_total: number;
+  case_passed_count: number;
+  case_warning_count: number;
+  case_failed_count: number;
+  case_skipped_count: number;
+  error_summary: string | null;
+  stale: boolean;
+  started_at: string;
+  completed_at: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -907,6 +944,43 @@ export async function fetchLatestResearchQualityReadinessRun(
 ): Promise<ResearchQualityReadinessRun | null> {
   const response = await safeFetch(
     buildApiUrl(`/api/v1/research-tasks/${taskUuid}/readiness-runs/latest`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function createGenerationEvaluationRun(
+  taskUuid: string,
+): Promise<GenerationEvaluationRun> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-tasks/${taskUuid}/generation-evaluation-runs`),
+    {
+      method: "POST",
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchLatestGenerationEvaluationRun(
+  taskUuid: string,
+): Promise<GenerationEvaluationRun | null> {
+  const response = await safeFetch(
+    buildApiUrl(
+      `/api/v1/research-tasks/${taskUuid}/generation-evaluation-runs/latest`,
+    ),
     {
       cache: "no-store",
     },

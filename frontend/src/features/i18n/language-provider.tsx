@@ -36,6 +36,7 @@ const englishCopy: Record<string, string> = {
   "主导航": "Primary navigation",
   "用户菜单": "User menu",
   "演示用户": "Demo user",
+  "内部质量复查": "Internal quality review",
   "切换语言": "Language",
   "中文": "Chinese",
   "English": "English",
