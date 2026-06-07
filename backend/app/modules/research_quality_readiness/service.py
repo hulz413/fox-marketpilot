@@ -14,6 +14,9 @@ from app.modules.demand_insights import service as demand_insights_service
 from app.modules.opportunities import service as opportunities_service
 from app.modules.opportunities.models import Opportunity
 from app.modules.opportunity_risks import service as opportunity_risks_service
+from app.modules.generation_quality_evaluation import (
+    service as generation_quality_evaluation_service,
+)
 from app.modules.rag_quality_evaluation import service as rag_quality_evaluation_service
 from app.modules.rag_retrieval import repository as rag_retrieval_repository
 from app.modules.rag_retrieval.models import RagEvidenceChunk
@@ -143,7 +146,11 @@ def create_readiness_run(
                 readiness_run.trace_url = trace_context.trace_url
                 repository.save_readiness_run(db, readiness_run)
 
-            checks, rag_evaluation_run_uuid = build_readiness_checks(
+            (
+                checks,
+                rag_evaluation_run_uuid,
+                generation_evaluation_run_uuid,
+            ) = build_readiness_checks(
                 db,
                 task,
                 run_rag_evaluation=run_rag_evaluation,
@@ -152,6 +159,7 @@ def create_readiness_run(
             readiness_run.checks = checks
             readiness_run.metrics = aggregate_metrics(checks)
             readiness_run.rag_evaluation_run_uuid = rag_evaluation_run_uuid
+            readiness_run.generation_evaluation_run_uuid = generation_evaluation_run_uuid
             readiness_run.overall_status = overall_status
             readiness_run.status = ReadinessRunStatus.COMPLETED.value
             readiness_run.summary = build_summary(overall_status, checks)
@@ -195,7 +203,7 @@ def build_readiness_checks(
     task: ResearchTask,
     *,
     run_rag_evaluation: bool,
-) -> tuple[list[dict[str, Any]], Optional[Any]]:
+) -> tuple[list[dict[str, Any]], Optional[Any], Optional[Any]]:
     opportunities = opportunities_service.list_task_opportunities(db, task)
     events = (
         agent_run_events_service.list_run_events(db, task, task.run_id)
@@ -213,7 +221,18 @@ def build_readiness_checks(
         chunks,
         run_rag_evaluation=run_rag_evaluation,
     )
-    content_check = check_generation_content_smoke(db, task, opportunities)
+    generation_evaluation_run = (
+        generation_quality_evaluation_service.get_latest_generation_evaluation_run(
+            db,
+            task,
+        )
+    )
+    content_check = check_generation_content_smoke(
+        db,
+        task,
+        opportunities,
+        generation_evaluation_run=generation_evaluation_run,
+    )
     share_check = check_report_share_snapshot(db, task)
 
     return (
@@ -225,6 +244,7 @@ def build_readiness_checks(
             share_check,
         ],
         rag_evaluation_run_uuid,
+        generation_evaluation_run.uuid if generation_evaluation_run else None,
     )
 
 
@@ -463,6 +483,8 @@ def check_generation_content_smoke(
     db: Session,
     task: ResearchTask,
     opportunities: list[Opportunity],
+    *,
+    generation_evaluation_run: Optional[Any] = None,
 ) -> dict[str, Any]:
     demand_insights = demand_insights_service.list_task_demand_insights(db, task)
     supply_candidates = supply_candidates_service.list_task_supply_candidates(db, task)
@@ -538,11 +560,61 @@ def check_generation_content_smoke(
     if visible_text and not has_cautious_terms:
         reasons.append("增强分析文案缺少初步参考或待验证类谨慎表达。")
 
+    generation_metrics: dict[str, Any] = {}
+    generation_actions: list[str] = []
+    if generation_evaluation_run is None:
+        reasons.append("尚未运行生成质量评测。")
+        generation_actions.append("运行生成质量评测 runner 后重新执行 readiness。")
+        generation_metrics["generation_evaluation_status"] = "unchecked"
+    else:
+        generation_stale = generation_quality_evaluation_service.is_stale(
+            generation_evaluation_run,
+            task,
+        )
+        generation_metrics.update(
+            {
+                "generation_evaluation_run_uuid": str(generation_evaluation_run.uuid),
+                "generation_evaluation_status": generation_evaluation_run.status,
+                "generation_evaluation_overall_status": (
+                    generation_evaluation_run.overall_status
+                ),
+                "generation_evaluation_stale": generation_stale,
+                "generation_evaluation_case_total": generation_evaluation_run.case_total,
+                "generation_evaluation_case_failed_count": (
+                    generation_evaluation_run.case_failed_count
+                ),
+                "generation_evaluation_case_warning_count": (
+                    generation_evaluation_run.case_warning_count
+                ),
+            }
+        )
+        if generation_evaluation_run.overall_status == "failed":
+            reasons.append("生成质量评测存在 failed case。")
+            generation_actions.append("查看生成质量评测结果并复查失败 case。")
+        elif generation_evaluation_run.overall_status == "warning":
+            reasons.append("生成质量评测存在 warning case。")
+            generation_actions.append("查看生成质量评测结果并复查 warning case。")
+        if generation_stale:
+            reasons.append("生成质量评测结果已过期。")
+            generation_actions.append("重新运行生成质量评测。")
+
     if len(opportunities) < 3 or missing_fields:
         status = ReadinessCheckStatus.FAILED.value
         severity = "critical"
         summary = "生成内容结构不完整。"
-    elif missing_enhancements or risky_hits or (visible_text and not has_cautious_terms):
+    elif (
+        missing_enhancements
+        or risky_hits
+        or (visible_text and not has_cautious_terms)
+        or generation_metrics.get("generation_evaluation_status") == "unchecked"
+        or (
+            generation_evaluation_run is not None
+            and (
+                generation_evaluation_run.overall_status != "passed"
+                or generation_metrics.get("generation_evaluation_stale")
+            )
+        )
+    ):
         status = ReadinessCheckStatus.WARNING.value
         severity = "warning"
         summary = "生成内容需要演示前复查。"
@@ -568,9 +640,19 @@ def check_generation_content_smoke(
             "missing_field_count": len(missing_fields),
             "missing_enhancement_group_count": len(missing_enhancements),
             "risky_claim_count": len(risky_hits),
+            **generation_metrics,
         },
         reasons=reasons,
-        actions=["补齐增强分析或重新运行研究任务。"] if reasons else [],
+        actions=[
+            *(
+                ["补齐增强分析或重新运行研究任务。"]
+                if missing_fields or missing_enhancements or risky_hits
+                else []
+            ),
+            *generation_actions,
+        ]
+        if reasons
+        else [],
     )
 
 
@@ -638,6 +720,9 @@ def aggregate_metrics(checks: list[dict[str, Any]]) -> dict[str, Any]:
             "active_chunk_count",
             "case_total",
             "case_failed_count",
+            "generation_evaluation_case_total",
+            "generation_evaluation_case_failed_count",
+            "generation_evaluation_case_warning_count",
         ):
             if key in check.get("metrics", {}):
                 metrics[key] = check["metrics"][key]
@@ -683,6 +768,7 @@ def readiness_run_to_read(
         checks=readiness_run.checks,
         metrics=readiness_run.metrics,
         rag_evaluation_run_uuid=readiness_run.rag_evaluation_run_uuid,
+        generation_evaluation_run_uuid=readiness_run.generation_evaluation_run_uuid,
         trace_id=readiness_run.trace_id,
         trace_url=readiness_run.trace_url,
         stale=is_stale(readiness_run, task),

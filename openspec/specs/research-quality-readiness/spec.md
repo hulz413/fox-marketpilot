@@ -104,7 +104,7 @@
 
 ### Requirement: 系统检查生成内容展示质量
 
-系统 SHALL 在质量就绪检查中对用户可见研究结果和增强分析执行确定性 smoke check。
+系统 SHALL 在质量就绪检查中对用户可见研究结果和增强分析执行确定性 smoke check，并纳入最近一次生成质量评测摘要。
 
 #### Scenario: 生成内容结构完整
 
@@ -126,6 +126,22 @@
 - **THEN** 系统验证关键结论保持初步参考、候选方向、待验证、需要确认或等价谨慎表达
 - **AND** 如果文案误称已经完成公开市场核验、供应商确认、库存确认、利润保证、自动联系供应商、自动发布内容或真实验证，系统将检查标记为 warning 或 failed
 - **AND** readiness 结果说明该问题是内部质量复查提示，不作为用户侧商机结论
+
+#### Scenario: 纳入生成质量评测摘要
+
+- **WHEN** readiness runner 检查一条已完成研究任务且存在最近 generation evaluation run
+- **THEN** 系统读取该 evaluation run 的公开 UUID、整体状态、case 计数、rubric 维度摘要、中文摘要和 stale 状态
+- **AND** readiness run 保存生成质量评测检查项摘要和 evaluation run 公开 UUID
+- **AND** 如果 generation evaluation run 为 `failed` 或已过期，生成内容展示质量检查至少标记为 warning
+- **AND** readiness 响应不返回完整 case 快照、完整 prompt、完整网页正文、原始异常堆栈或内部自增 ID
+
+#### Scenario: 缺少生成质量评测时保留 smoke check
+
+- **WHEN** readiness runner 检查一条已完成研究任务但不存在 generation evaluation run
+- **THEN** 系统继续执行确定性生成内容 smoke check
+- **AND** 生成质量评测检查项标记为未检查、warning 或等价内部状态
+- **AND** 系统可以提示团队运行生成质量评测
+- **AND** readiness 检查不因为缺少 generation evaluation run 而修改研究任务状态或删除已有结果
 
 ### Requirement: 前端隐藏用户进度页的内部演示就绪状态
 

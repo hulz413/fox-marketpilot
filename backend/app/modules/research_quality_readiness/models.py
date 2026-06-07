@@ -68,6 +68,10 @@ class ResearchQualityReadinessRun(Base):
         Uuid(as_uuid=True),
         nullable=True,
     )
+    generation_evaluation_run_uuid: Mapped[Optional[uuid_pkg.UUID]] = mapped_column(
+        Uuid(as_uuid=True),
+        nullable=True,
+    )
     trace_id: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     trace_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     started_at: Mapped[datetime] = mapped_column(

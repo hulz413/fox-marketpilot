@@ -49,6 +49,7 @@ class ResearchQualityReadinessRunRead(BaseModel):
     checks: list[ReadinessCheckRead]
     metrics: dict[str, Any]
     rag_evaluation_run_uuid: Optional[UUID]
+    generation_evaluation_run_uuid: Optional[UUID]
     trace_id: Optional[str]
     trace_url: Optional[str]
     stale: bool
