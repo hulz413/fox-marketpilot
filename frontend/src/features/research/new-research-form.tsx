@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -33,6 +34,7 @@ import {
 import {
   createAndStartResearchTask,
   ResearchRunStartError,
+  type ResearchIntakeDraft,
 } from "./api";
 import { DemoResearchSamples } from "./demo-research-samples";
 
@@ -85,9 +87,29 @@ function sampleToFormValues(sample: SampleResearchRequest): NewResearchFormValue
   };
 }
 
+function draftToFormValues(draft: ResearchIntakeDraft): NewResearchFormValues {
+  return {
+    brief: draft.brief ?? "",
+    budget: draft.budget ?? "",
+    targetChannels: joinList(draft.target_channels),
+    preferredCategories: joinList(draft.preferred_categories),
+    excludedCategories: joinList(draft.excluded_categories),
+    targetAudience: draft.target_audience ?? "",
+    expectedProfit: draft.expected_profit ?? "",
+    supplyPreferences: joinList(draft.supply_preferences),
+    constraints: draft.constraints ?? "",
+  };
+}
+
 const defaultValues = sampleToFormValues(sampleResearchRequests[0]);
 
-export function NewResearchForm() {
+export function NewResearchForm({
+  initialDraft,
+  initialDraftVersion = 0,
+}: {
+  initialDraft?: ResearchIntakeDraft | null;
+  initialDraftVersion?: number;
+}) {
   const { t } = useLanguage();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -107,9 +129,7 @@ export function NewResearchForm() {
     },
   });
 
-  function fillWithSample(sample: SampleResearchRequest) {
-    const values = sampleToFormValues(sample);
-
+  const applyFormValues = useCallback((values: NewResearchFormValues) => {
     setValue("brief", values.brief, { shouldDirty: true, shouldValidate: true });
     setValue("budget", values.budget, { shouldDirty: true });
     setValue("targetChannels", values.targetChannels, { shouldDirty: true });
@@ -123,6 +143,18 @@ export function NewResearchForm() {
     setValue("expectedProfit", values.expectedProfit, { shouldDirty: true });
     setValue("supplyPreferences", values.supplyPreferences, { shouldDirty: true });
     setValue("constraints", values.constraints, { shouldDirty: true });
+  }, [setValue]);
+
+  useEffect(() => {
+    if (!initialDraft || initialDraftVersion <= 0) {
+      return;
+    }
+
+    applyFormValues(draftToFormValues(initialDraft));
+  }, [applyFormValues, initialDraft, initialDraftVersion]);
+
+  function fillWithSample(sample: SampleResearchRequest) {
+    applyFormValues(sampleToFormValues(sample));
   }
 
   async function onSubmit(values: NewResearchFormValues) {
@@ -247,13 +279,6 @@ export function NewResearchForm() {
                 ? t("正在启动")
                 : t("创建并启动")}
               <ArrowRight data-icon="inline-end" />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.push("/research/tasks")}
-            >
-              {t("我的研究")}
             </Button>
           </div>
         </CardContent>

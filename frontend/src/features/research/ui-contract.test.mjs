@@ -87,6 +87,7 @@ test("research timestamps use yyyy-mm-dd and compact durations", () => {
 test("global navigation is streamlined around my research", () => {
   const data = readSource("src/features/product-skeleton/data.ts");
   const home = readSource("src/app/page.tsx");
+  const tasks = readSource("src/app/research/tasks/page.tsx");
   const history = readSource("src/app/history/page.tsx");
   const opportunities = readSource("src/app/opportunities/page.tsx");
   const reports = readSource("src/app/reports/page.tsx");
@@ -95,7 +96,8 @@ test("global navigation is streamlined around my research", () => {
   assert.doesNotMatch(data, /label: "研究历史"/);
   assert.doesNotMatch(data, /label: "商机推荐"/);
   assert.doesNotMatch(data, /label: "最终报告"/);
-  assert.match(home, /title="我的研究"/);
+  assert.match(home, /ResearchIntakeWorkspace/);
+  assert.match(tasks, /title="我的研究"/);
   assert.match(history, /redirect\("\/research\/tasks\?status=completed"\)/);
   assert.match(opportunities, /active="tasks"/);
   assert.match(reports, /active="tasks"/);
@@ -118,12 +120,118 @@ test("demo research samples are actionable real task entries", () => {
 
 test("new research form supports sample fill and direct launch", () => {
   const source = readSource("src/features/research/new-research-form.tsx");
+  const legacyNewPage = readSource("src/app/research/new/page.tsx");
+  const legacyChatPage = readSource("src/app/research/chat/page.tsx");
+  const home = readSource("src/app/page.tsx");
+  const workspace = readSource(
+    "src/features/research/research-intake-workspace.tsx",
+  );
+  const tasks = readSource("src/app/research/tasks/page.tsx");
+  const shell = readSource("src/features/product-skeleton/components.tsx");
+  const navData = readSource("src/features/product-skeleton/data.ts");
 
   assert.match(source, /sampleToFormValues/);
+  assert.match(source, /draftToFormValues/);
+  assert.match(source, /initialDraftVersion/);
+  assert.match(source, /type ResearchIntakeDraft/);
   assert.match(source, /fillWithSample/);
   assert.match(source, /DemoResearchSamples onFill/);
   assert.match(source, /createAndStartResearchTask/);
   assert.match(source, /直接启动一个完整演示任务/);
+  assert.match(legacyNewPage, /redirect\("\/"\)/);
+  assert.match(legacyChatPage, /redirect\("\/"\)/);
+  assert.match(home, /ResearchIntakeWorkspace/);
+  assert.match(workspace, /useState<ResearchIntakeMode>\("chat"\)/);
+  assert.match(workspace, /formDraft/);
+  assert.match(workspace, /editDraftInForm/);
+  assert.match(workspace, /setMode\(isChatMode \? "form" : "chat"\)/);
+  assert.match(workspace, /聊天模式/);
+  assert.match(workspace, /表单模式/);
+  assert.match(workspace, /breadcrumbAction=/);
+  assert.match(workspace, /contentScroll=\{false\}/);
+  assert.match(workspace, /className="h-full min-h-0"/);
+  assert.match(workspace, /onEditDraft=\{editDraftInForm\}/);
+  assert.match(workspace, /initialDraft=\{formDraft\?\.draft\}/);
+  assert.match(workspace, /ClipboardList data-icon="inline-end"/);
+  assert.match(tasks, /ResearchTaskList/);
+  assert.doesNotMatch(tasks, /@\/app\/page/);
+  assert.match(navData, /href: "\/"/);
+  assert.match(shell, /aria-label=\{t\("返回主页"\)\}/);
+  assert.match(shell, /href="\/"/);
+  assert.match(shell, /breadcrumbAction\?: ReactNode/);
+  assert.match(shell, /contentScroll\?: boolean/);
+  assert.match(shell, /contentScroll \? "lg:overflow-y-auto" : "lg:overflow-hidden"/);
+  assert.match(shell, /sm:justify-between lg:pr-1/);
+});
+
+test("research intake chat creates drafts before starting tasks", () => {
+  const workspace = readSource(
+    "src/features/research/research-intake-workspace.tsx",
+  );
+  const chat = readSource("src/features/research/research-intake-chat.tsx");
+  const api = readSource("src/features/research/api.ts");
+  const navData = readSource("src/features/product-skeleton/data.ts");
+
+  assert.match(workspace, /ResearchIntakeChat/);
+  assert.match(workspace, /NewResearchForm/);
+  assert.match(workspace, /hidden=\{!isChatMode\}/);
+  assert.match(workspace, /hidden=\{isChatMode\}/);
+  assert.match(chat, /聊天对齐需求/);
+  assert.match(chat, /研究草稿/);
+  assert.match(chat, /缺失条件/);
+  assert.match(chat, /默认假设/);
+  assert.match(chat, /确认并启动研究/);
+  assert.match(chat, /createResearchIntakeConversation/);
+  assert.match(chat, /sendResearchIntakeMessage/);
+  assert.match(chat, /updateResearchIntakeRequirements/);
+  assert.match(chat, /更新需求/);
+  assert.match(chat, /更新中/);
+  assert.match(chat, /商机顾问会追问补充信息/);
+  assert.match(chat, /fetchResearchIntakeConversation/);
+  assert.match(chat, /INTAKE_CONVERSATION_STORAGE_KEY/);
+  assert.match(chat, /sessionStorage/);
+  assert.match(chat, /正在恢复上次聊天/);
+  assert.match(chat, /带入表单编辑/);
+  assert.match(chat, /onEditDraft/);
+  assert.match(chat, /ChatAvatar/);
+  assert.match(chat, /ChatThinkingMessage/);
+  assert.match(chat, /suggested_replies/);
+  assert.doesNotMatch(chat, /suggestedRepliesForAssistant/);
+  assert.match(chat, /latestAssistantMessageUuid/);
+  assert.match(chat, /可选回复/);
+  assert.match(chat, /onSuggestionSelect=\{submitMessage\}/);
+  assert.match(chat, /size="xs"/);
+  assert.match(chat, /pendingMessage/);
+  assert.match(chat, /思考中/);
+  assert.match(chat, /messagesViewportRef/);
+  assert.doesNotMatch(chat, /h-\[520px\]/);
+  assert.match(chat, /lg:h-full/);
+  assert.match(chat, /overflow-y-auto/);
+  assert.match(chat, /\[scrollbar-width:none\]/);
+  assert.match(chat, /flex min-h-0 flex-1 flex-col gap-4/);
+  assert.match(chat, /min-h-0 min-w-0 self-stretch/);
+  assert.match(chat, /h-full min-h-0 rounded-lg/);
+  assert.match(chat, /grid min-h-0 flex-1 gap-4 overflow-y-auto/);
+  assert.match(chat, /UserRound/);
+  assert.match(chat, /Compass/);
+  assert.match(chat, /max-w-\[min\(560px,72%\)\]/);
+  assert.match(chat, /sr-only/);
+  assert.match(chat, /confirmResearchIntakeConversation/);
+  assert.match(chat, /handleMessageKeyDown/);
+  assert.match(chat, /event\.nativeEvent\.isComposing/);
+  assert.match(chat, /event\.shiftKey/);
+  assert.match(chat, /LoaderCircle/);
+  assert.match(chat, /animate-spin/);
+  assert.doesNotMatch(chat, /发送中/);
+  assert.doesNotMatch(chat, /正在整理需求草稿/);
+  assert.match(chat, /router\.push\(`\/research\/tasks\/\$\{result\.research_task_uuid\}`\)/);
+  assert.match(api, /ResearchIntakeConversation/);
+  assert.match(api, /suggested_replies: string\[\]/);
+  assert.match(api, /\/api\/v1\/research-intake-conversations/);
+  assert.match(api, /\/analysis/);
+  assert.match(api, /body: JSON\.stringify\(\{ content \}\)/);
+  assert.doesNotMatch(navData, /research\/chat/);
+  assert.doesNotMatch(chat, /href="\/research\/new"/);
 });
 
 test("language menu keeps bilingual UI toggle with Chinese default", () => {

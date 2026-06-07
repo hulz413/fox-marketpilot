@@ -14,7 +14,7 @@ export type ProductNavItem = {
 };
 
 export const productNavItems: ProductNavItem[] = [
-  { key: "new", label: "新建研究", href: "/research/new", icon: Sparkles },
+  { key: "new", label: "新建研究", href: "/", icon: Sparkles },
   { key: "tasks", label: "我的研究", href: "/research/tasks", icon: ClipboardList },
 ];
 

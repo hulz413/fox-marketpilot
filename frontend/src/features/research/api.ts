@@ -83,6 +83,57 @@ export type ResearchProgress = {
   available_actions: ResearchProgressAction[];
 };
 
+export type ResearchIntakeConversationStatus = "active" | "converted";
+export type ResearchIntakeReadinessStatus = "needs_clarification" | "ready";
+export type ResearchIntakeMessageRole = "user" | "assistant" | "system";
+
+export type ResearchIntakeDraft = {
+  brief: string | null;
+  budget: string | null;
+  target_channels: string[];
+  preferred_categories: string[];
+  excluded_categories: string[];
+  target_audience: string | null;
+  expected_profit: string | null;
+  supply_preferences: string[];
+  constraints: string | null;
+};
+
+export type ResearchIntakeMessage = {
+  uuid: string;
+  role: ResearchIntakeMessageRole;
+  content: string;
+  structured_delta: Partial<ResearchIntakeDraft>;
+  suggested_replies: string[];
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type ResearchIntakeConversation = {
+  uuid: string;
+  status: ResearchIntakeConversationStatus;
+  draft: ResearchIntakeDraft;
+  missing_fields: string[];
+  assumptions: string[];
+  readiness_status: ResearchIntakeReadinessStatus;
+  can_create_task: boolean;
+  research_task_uuid: string | null;
+  trace_id: string | null;
+  trace_url: string | null;
+  error_summary: string | null;
+  messages: ResearchIntakeMessage[];
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+};
+
+export type ResearchIntakeConversationConfirm = {
+  conversation: ResearchIntakeConversation;
+  research_task_uuid: string | null;
+  error_summary: string | null;
+};
+
 export type OpportunityRiskLevel = "low" | "medium" | "high";
 
 export type Opportunity = {
@@ -469,6 +520,10 @@ async function readErrorMessage(response: Response) {
       return body.detail;
     }
 
+    if (body.detail?.message) {
+      return body.detail.message;
+    }
+
     if (Array.isArray(body.detail) && body.detail[0]?.msg) {
       return body.detail[0].msg;
     }
@@ -574,6 +629,104 @@ export async function startResearchRun(taskUuid: string): Promise<ResearchTask> 
     {
       method: "POST",
       cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function createResearchIntakeConversation(input?: {
+  message?: string;
+}): Promise<ResearchIntakeConversation> {
+  const response = await safeFetch(
+    buildApiUrl("/api/v1/research-intake-conversations"),
+    {
+      cache: "no-store",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input ?? {}),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function fetchResearchIntakeConversation(
+  conversationUuid: string,
+): Promise<ResearchIntakeConversation> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-intake-conversations/${conversationUuid}`),
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function sendResearchIntakeMessage(
+  conversationUuid: string,
+  content: string,
+): Promise<ResearchIntakeConversation> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-intake-conversations/${conversationUuid}/messages`),
+    {
+      cache: "no-store",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function updateResearchIntakeRequirements(
+  conversationUuid: string,
+): Promise<ResearchIntakeConversation> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-intake-conversations/${conversationUuid}/analysis`),
+    {
+      cache: "no-store",
+      method: "POST",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json();
+}
+
+export async function confirmResearchIntakeConversation(
+  conversationUuid: string,
+): Promise<ResearchIntakeConversationConfirm> {
+  const response = await safeFetch(
+    buildApiUrl(`/api/v1/research-intake-conversations/${conversationUuid}/confirm`),
+    {
+      cache: "no-store",
+      method: "POST",
     },
   );
 

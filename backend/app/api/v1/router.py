@@ -9,6 +9,7 @@ from app.api.v1.routes import (
     opportunities,
     opportunity_risks,
     report_shares,
+    research_intake_conversations,
     research_quality_readiness,
     research_tasks,
     sources,
@@ -19,6 +20,10 @@ from app.api.v1.routes import (
 api_router = APIRouter()
 api_router.include_router(health.router, tags=["health"])
 api_router.include_router(research_tasks.router, tags=["research_tasks"])
+api_router.include_router(
+    research_intake_conversations.router,
+    tags=["research_intake_conversations"],
+)
 api_router.include_router(opportunities.router, tags=["opportunities"])
 api_router.include_router(sources.router, tags=["sources"])
 api_router.include_router(demand_insights.router, tags=["demand_insights"])

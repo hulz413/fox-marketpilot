@@ -60,6 +60,8 @@ type ProductShellProps = {
   eyebrow?: string;
   description?: string;
   action?: ReactNode;
+  breadcrumbAction?: ReactNode;
+  contentScroll?: boolean;
   aside?: ReactNode;
   children: ReactNode;
 };
@@ -70,6 +72,8 @@ export function ProductShell({
   eyebrow,
   description,
   action,
+  breadcrumbAction,
+  contentScroll = true,
   aside,
   children,
 }: ProductShellProps) {
@@ -83,7 +87,11 @@ export function ProductShell({
       <div className="min-h-screen lg:grid lg:h-screen lg:grid-cols-[300px_minmax(0,1fr)]">
         <header className="border-b bg-card/95 px-4 py-4 lg:hidden">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-3">
+            <Link
+              href="/"
+              className="flex min-w-0 items-center gap-3 rounded-md outline-none transition-opacity hover:opacity-90 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              aria-label={t("返回主页")}
+            >
               <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <Compass className="size-5" aria-hidden="true" />
               </div>
@@ -93,7 +101,7 @@ export function ProductShell({
                   {t("商机顾问 Agent")}
                 </p>
               </div>
-            </div>
+            </Link>
             <UserMenu />
           </div>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
@@ -103,7 +111,11 @@ export function ProductShell({
         </header>
 
         <aside className="hidden flex-col border-r bg-card/85 lg:flex lg:h-screen lg:overflow-y-auto">
-          <div className="flex items-center gap-4 px-6 py-6">
+          <Link
+            href="/"
+            className="mx-6 my-6 flex items-center gap-4 rounded-md outline-none transition-opacity hover:opacity-90 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            aria-label={t("返回主页")}
+          >
             <div className="flex size-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Compass className="size-6" aria-hidden="true" />
             </div>
@@ -113,7 +125,7 @@ export function ProductShell({
                 {t("商机顾问 Agent")}
               </p>
             </div>
-          </div>
+          </Link>
 
           <div className="px-5">
             <div
@@ -170,15 +182,30 @@ export function ProductShell({
 
           <div className="grid gap-4 p-5 lg:min-h-0 lg:flex-1 lg:grid-rows-[auto_minmax(0,1fr)] lg:gap-0 lg:overflow-hidden">
             <div className="relative z-20 lg:-mx-5 lg:-mt-5 lg:border-b lg:border-border/80 lg:bg-background lg:px-5 lg:pb-3 lg:pt-5 lg:shadow-[0_10px_18px_-16px_rgba(31,39,34,0.28)]">
-              <ProductBreadcrumb active={active} title={title} />
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:pr-1">
+                <ProductBreadcrumb active={active} title={title} />
+                {breadcrumbAction ? (
+                  <div className="flex shrink-0 justify-end">
+                    {breadcrumbAction}
+                  </div>
+                ) : null}
+              </div>
             </div>
             <div
               className={cn(
-                "grid gap-5 lg:min-h-0 lg:overflow-y-auto lg:pr-1 lg:pt-4",
+                "grid gap-5 lg:min-h-0 lg:pr-1 lg:pt-4",
+                contentScroll ? "lg:overflow-y-auto" : "lg:overflow-hidden",
                 aside ? "xl:grid-cols-[minmax(0,1fr)_320px]" : ""
               )}
             >
-              <div className="min-w-0">{children}</div>
+              <div
+                className={cn(
+                  "min-w-0",
+                  contentScroll ? "" : "lg:h-full lg:min-h-0"
+                )}
+              >
+                {children}
+              </div>
               {aside ? <aside className="min-w-0">{aside}</aside> : null}
             </div>
           </div>
@@ -209,7 +236,7 @@ function ProductBreadcrumb({
       <ol className="flex min-w-0 flex-wrap items-center gap-1">
         <li>
           <Link
-            href="/research/tasks"
+            href="/"
             className="font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             {t("MarketPilot")}
@@ -591,7 +618,7 @@ export function EmptyResearchState() {
       </CardHeader>
       <CardContent className="grid gap-4">
         <Button asChild className="w-fit">
-          <Link href="/research/new">
+          <Link href="/">
             {t("新建研究")}
             <ArrowRight data-icon="inline-end" />
           </Link>

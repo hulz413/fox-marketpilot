@@ -22,8 +22,8 @@ export default async function ReportPage({
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
             <Link href="/research/tasks">
-              <ClipboardList data-icon="inline-start" />
               <LocalizedText source="我的研究" />
+              <ClipboardList data-icon="inline-end" />
             </Link>
           </Button>
           <Button asChild>

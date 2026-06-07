@@ -263,7 +263,7 @@ function EmptyReportState({
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/research/new">新建研究</Link>
+            <Link href="/">新建研究</Link>
           </Button>
         </div>
       </CardContent>

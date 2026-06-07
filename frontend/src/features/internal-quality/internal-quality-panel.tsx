@@ -448,7 +448,7 @@ function TaskSelectorCard({
         <CardContent className="grid gap-3 text-sm leading-6 text-muted-foreground">
           <p>先完成一次真实研究任务后，再运行内部质量复查。</p>
           <Button asChild variant="outline" className="w-fit">
-            <Link href="/research/new">新建研究</Link>
+            <Link href="/">新建研究</Link>
           </Button>
         </CardContent>
       </Card>

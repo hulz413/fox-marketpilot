@@ -44,7 +44,7 @@ export default function ReportsIndexPage() {
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/research/new">
+            <Link href="/">
               <LocalizedText source="新建研究" />
               <Sparkles data-icon="inline-end" />
             </Link>

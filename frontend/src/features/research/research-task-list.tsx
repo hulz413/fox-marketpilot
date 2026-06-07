@@ -865,7 +865,7 @@ function EmptyFilteredState({ filter }: { filter: TaskStatusFilter }) {
           <Link href="/research/tasks">{t("查看全部")}</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link href="/research/new">{t("新建研究")}</Link>
+          <Link href="/">{t("新建研究")}</Link>
         </Button>
       </div>
     </div>

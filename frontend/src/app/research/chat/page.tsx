@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function NewResearchPage() {
+export default function ResearchChatPage() {
   redirect("/");
 }

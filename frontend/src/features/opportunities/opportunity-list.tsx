@@ -292,7 +292,7 @@ function EmptyOpportunityState({
           </Link>
         </Button>
         <Button asChild variant="outline">
-          <Link href="/research/new">{t("新建研究")}</Link>
+          <Link href="/">{t("新建研究")}</Link>
         </Button>
       </CardContent>
     </Card>
