@@ -42,7 +42,21 @@ CHAT_FOLLOW_UP_TIMEOUT_SECONDS = 4.0
 INTAKE_ANALYSIS_TIMEOUT_SECONDS = 8.0
 
 LIST_SPLIT_PATTERN = re.compile(r"[,，、\n；;]")
-FOLLOW_UP_MARKERS = ("预算", "渠道", "平台", "人群", "品类", "排除", "不做", "不要", "供给", "货源", "利润")
+FOLLOW_UP_MARKERS = (
+    "预算",
+    "渠道",
+    "平台",
+    "人群",
+    "用户",
+    "受众",
+    "品类",
+    "排除",
+    "不做",
+    "不要",
+    "供给",
+    "货源",
+    "利润",
+)
 ACKNOWLEDGEMENT_REPLIES = {
     "好",
     "好的",
@@ -87,7 +101,38 @@ UNNATURAL_CHAT_MARKERS = (
 BUDGET_PATTERN = re.compile(
     r"((?:预算|首批|验证预算)?\s*\d+(?:\.\d+)?\s*(?:元|块|万|w|W)(?:以内|以下|左右|上下)?)"
 )
-TARGET_AUDIENCE_PATTERN = re.compile(r"面向([^，。,.!?！？]+?)(?:，|。|,|\.|!|\?|！|？|$)")
+TARGET_AUDIENCE_PATTERN = re.compile(
+    r"(?:面向|针对|主要给|主要卖给|卖给)"
+    r"([^，。,.!?！？]+?)(?:，|。|,|\.|!|\?|！|？|$)"
+)
+TARGET_AUDIENCE_SHORT_REPLY_MARKERS = (
+    "用户",
+    "人群",
+    "群体",
+    "受众",
+    "女性",
+    "男性",
+    "女生",
+    "男生",
+    "学生",
+    "宝妈",
+    "妈妈",
+    "白领",
+    "上班族",
+    "租房",
+    "办公",
+    "年轻人",
+    "中老年",
+    "银发",
+)
+NON_AUDIENCE_SHORT_REPLIES = {
+    "都可以",
+    "都可以吧",
+    "先不限定",
+    "暂不限定",
+    "没有",
+    "暂无",
+}
 
 
 class ConversationNotReadyError(ValueError):
@@ -821,7 +866,7 @@ def fallback_analysis(
 def infer_draft_update(user_content: str) -> ResearchIntakeDraft:
     content = user_content.strip()
     budget_match = BUDGET_PATTERN.search(content)
-    target_audience_match = TARGET_AUDIENCE_PATTERN.search(content)
+    target_audience = extract_target_audience(content)
 
     target_channels = extract_known_terms(
         content,
@@ -871,11 +916,43 @@ def infer_draft_update(user_content: str) -> ResearchIntakeDraft:
         target_channels=target_channels,
         preferred_categories=preferred_categories,
         excluded_categories=excluded_categories,
-        target_audience=target_audience_match.group(1).strip()
-        if target_audience_match
-        else None,
+        target_audience=target_audience,
         supply_preferences=supply_preferences,
     )
+
+
+def extract_target_audience(content: str) -> Optional[str]:
+    match = TARGET_AUDIENCE_PATTERN.search(content)
+    if match:
+        return normalize_target_audience(match.group(1))
+
+    for part in re.split(r"[,，、\n；;。.!！?？]", content):
+        candidate = normalize_target_audience(part)
+        if is_short_target_audience_reply(candidate):
+            return candidate
+
+    return None
+
+
+def normalize_target_audience(value: str) -> Optional[str]:
+    audience = value.strip()
+    if not audience:
+        return None
+    audience = re.sub(r"^(?:主要)?(?:面向|针对|给|卖给)\s*", "", audience)
+    return audience[:120] or None
+
+
+def is_short_target_audience_reply(content: Optional[str]) -> bool:
+    if not content:
+        return False
+
+    normalized = re.sub(r"\s+", "", content)
+    if normalized in NON_AUDIENCE_SHORT_REPLIES:
+        return False
+    if len(normalized) > 32:
+        return False
+
+    return any(marker in normalized for marker in TARGET_AUDIENCE_SHORT_REPLY_MARKERS)
 
 
 def extract_known_terms(content: str, terms: list[tuple[str, str]]) -> list[str]:

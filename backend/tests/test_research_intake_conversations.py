@@ -279,6 +279,40 @@ def test_chat_follow_up_keeps_asking_after_short_user_reply(
     assert body["draft"]["brief"] is None
 
 
+def test_short_audience_reply_prevents_repeated_audience_follow_up(
+    client: tuple[TestClient, sessionmaker[Session]],
+) -> None:
+    test_client, _ = client
+    created = test_client.post(
+        "/api/v1/research-intake-conversations",
+        json={
+            "message": "预算 5000 元以内，从 1688 找适合小红书种草的产品，不做食品和电子产品。"
+        },
+    ).json()
+    audience_response = test_client.post(
+        f"/api/v1/research-intake-conversations/{created['uuid']}/messages",
+        json={"content": "年轻女性用户"},
+    )
+    category_response = test_client.post(
+        f"/api/v1/research-intake-conversations/{created['uuid']}/messages",
+        json={"content": "桌面小物"},
+    )
+    preference_response = test_client.post(
+        f"/api/v1/research-intake-conversations/{created['uuid']}/messages",
+        json={"content": "都可以吧"},
+    )
+
+    assert audience_response.status_code == 200
+    assert category_response.status_code == 200
+    assert preference_response.status_code == 200
+    body = preference_response.json()
+    assistant_content = body["messages"][-1]["content"]
+    assert "主要面向哪类人群" not in assistant_content
+    assert "哪类人群" not in assistant_content
+    assert "价格带" in assistant_content or "毛利" in assistant_content
+    assert body["draft"]["brief"] is None
+
+
 def test_update_requirements_updates_draft_without_creating_task(
     client: tuple[TestClient, sessionmaker[Session]],
 ) -> None:
