@@ -10,6 +10,8 @@ from openai import OpenAI
 from app.core.settings import get_settings
 from app.integrations.langsmith import is_langsmith_tracing_enabled
 
+OPENAI_COMPATIBLE_EMBEDDING_BATCH_SIZE = 10
+
 
 class EmbeddingClient(Protocol):
     model: str
@@ -43,12 +45,14 @@ class OpenAICompatibleEmbeddingClient:
         if not texts:
             return []
 
-        response = self.client.embeddings.create(
-            model=self.model,
-            input=texts,
-            dimensions=self.dimension,
-        )
-        embeddings = [item.embedding for item in response.data]
+        embeddings: list[list[float]] = []
+        for batch in batch_texts(texts, OPENAI_COMPATIBLE_EMBEDDING_BATCH_SIZE):
+            response = self.client.embeddings.create(
+                model=self.model,
+                input=batch,
+                dimensions=self.dimension,
+            )
+            embeddings.extend(item.embedding for item in response.data)
 
         if len(embeddings) != len(texts):
             raise RuntimeError("Embedding provider returned an unexpected result count.")
@@ -92,6 +96,10 @@ def tokenize_text(text: str) -> list[str]:
     ascii_tokens = re.findall(r"[a-z0-9_]+", normalized)
     chinese_chars = re.findall(r"[\u4e00-\u9fff]", normalized)
     return ascii_tokens + chinese_chars
+
+
+def batch_texts(texts: list[str], batch_size: int) -> list[list[str]]:
+    return [texts[index : index + batch_size] for index in range(0, len(texts), batch_size)]
 
 
 def get_embedding_client() -> Optional[EmbeddingClient]:

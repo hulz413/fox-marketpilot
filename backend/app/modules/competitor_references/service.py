@@ -27,7 +27,6 @@ from app.modules.competitor_references.schemas import (
     HomogenizationLevel,
     OpportunityCompetitorReferenceRead,
 )
-from app.modules.demand_insights import service as demand_insights_service
 from app.modules.opportunities import service as opportunities_service
 from app.modules.opportunities.models import Opportunity
 from app.modules.rag_retrieval import service as rag_retrieval_service
@@ -36,7 +35,6 @@ from app.modules.research_tasks.models import ResearchTask
 from app.modules.sources import service as sources_service
 from app.modules.sources.models import ResearchSource
 from app.modules.sources.schemas import ResearchSourceType
-from app.modules.supply_candidates import service as supply_candidates_service
 
 MAX_SOURCES_PER_OPPORTUNITY = 3
 MAX_SOURCE_TEXT_LENGTH = 360
@@ -278,14 +276,8 @@ def collect_competitor_references(
         retrieval_fallback_count,
         retrieval_queries,
     ) = build_evidence_by_opportunity(db, task, opportunities, task_sources)
-    demand_summary_by_opportunity_id = {
-        insight.opportunity_id: insight.summary
-        for insight in demand_insights_service.list_task_demand_insights(db, task)
-    }
-    supply_summaries_by_opportunity_id = build_supply_summaries_by_opportunity_id(
-        db,
-        task,
-    )
+    demand_summary_by_opportunity_id: dict[int, str] = {}
+    supply_summaries_by_opportunity_id: dict[int, list[str]] = {}
     active_generator = generator or get_competitor_reference_generator()
     generation_result = generate_validated_references(
         active_generator,
@@ -579,23 +571,6 @@ def competitor_reference_to_read(
         updated_at=reference.updated_at,
         deleted_at=reference.deleted_at,
     )
-
-
-def build_supply_summaries_by_opportunity_id(
-    db: Session,
-    task: ResearchTask,
-) -> dict[int, list[str]]:
-    grouped: dict[int, list[str]] = defaultdict(list)
-
-    for candidate in supply_candidates_service.list_task_supply_candidates(db, task):
-        grouped[candidate.opportunity_id].append(
-            (
-                f"{candidate.candidate_name}：{candidate.supply_market}，"
-                f"{candidate.price_range}"
-            )
-        )
-
-    return grouped
 
 
 def build_generation_context(

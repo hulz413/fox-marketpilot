@@ -80,6 +80,13 @@ UPDATE_REQUIREMENTS_INTENT_MARKERS = (
     "差不多了",
     "先更新",
     "先整理",
+    "就这样",
+    "先这样",
+    "先这样吧",
+    "暂时这样",
+    "暂时先这样",
+    "后面再补",
+    "后续再补",
 )
 UPDATE_REQUIREMENTS_NEGATION_MARKERS = (
     "不要更新需求",

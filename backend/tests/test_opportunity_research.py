@@ -11,7 +11,8 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.agents.graph import DeterministicDemoGenerator
+from app.agents import graph as graph_module
+from app.agents.graph import DeterministicDemoGenerator, LLMOpportunityGenerator
 from app.db.base import Base
 from app.db.session import get_db
 from app.integrations.langsmith import TraceContext
@@ -19,6 +20,31 @@ from app.main import app
 from app.modules.agent_runs.models import AgentRunEvent
 from app.modules.agent_runs import service as agent_run_events_service
 from app.modules.research_tasks import service as research_task_service
+
+
+EXPECTED_COMPLETED_STAGES = {
+    "opportunity_research",
+    "normalize_intake",
+    "generate_opportunities",
+    "validate_results",
+    "persist_results",
+    "collect_research_sources",
+    "index_rag_evidence",
+    "analyze_research",
+    "generate_demand_insights",
+    "generate_supply_candidates",
+    "generate_competitor_references",
+    "synthesize_research_findings",
+    "estimate_validation_budgets",
+    "review_opportunity_risks",
+    "create_action_plans",
+}
+
+PARALLEL_ANALYSIS_STAGES = {
+    "generate_demand_insights",
+    "generate_supply_candidates",
+    "generate_competitor_references",
+}
 
 
 @pytest.fixture()
@@ -66,6 +92,71 @@ def create_task(test_client: TestClient) -> dict[str, Any]:
 
     assert response.status_code == 201
     return response.json()
+
+
+class FakeChatCompletion:
+    def __init__(self, content: str) -> None:
+        self.choices = [
+            type("Choice", (), {"message": type("Message", (), {"content": content})()})()
+        ]
+
+
+class FakeCompletions:
+    def __init__(self, contents: list[str]) -> None:
+        self.contents = contents
+        self.calls: list[dict[str, Any]] = []
+
+    def create(self, **kwargs: Any) -> FakeChatCompletion:
+        self.calls.append(kwargs)
+        return FakeChatCompletion(self.contents.pop(0))
+
+
+class FakeOpenAIClient:
+    def __init__(self, contents: list[str]) -> None:
+        self.chat = type(
+            "Chat",
+            (),
+            {"completions": FakeCompletions(contents)},
+        )()
+
+
+def test_llm_opportunity_generator_retries_invalid_json_once() -> None:
+    client = FakeOpenAIClient(
+        [
+            '{"opportunities":[{"rank":1 "name":"bad"}]}',
+            (
+                '{"opportunities":[{"rank":1,"name":"桌面收纳香薰托盘",'
+                '"product_direction":"租房办公桌面整理与氛围改善",'
+                '"target_audience":"小预算验证人群",'
+                '"recommendation_reason":"适合小预算内容验证。",'
+                '"suitable_channels":["小红书种草"],'
+                '"price_band":"29-69 元","rough_margin":"30%-45%",'
+                '"risk_level":"low","priority_label":"优先验证",'
+                '"next_step_summary":"先测试 3 组内容。"}]}'
+            ),
+        ]
+    )
+    generator = LLMOpportunityGenerator(client=client)  # type: ignore[arg-type]
+
+    result = generator.generate(
+        {
+            "title": "小预算选品",
+            "brief": "预算 5000 元以内，从 1688 找适合小红书种草的产品。",
+            "budget": "5000 元以内",
+            "target_channels": ["小红书种草"],
+            "preferred_categories": [],
+            "excluded_categories": ["食品", "电子产品"],
+            "target_audience": "小预算验证人群",
+            "expected_profit": "",
+            "supply_preferences": [],
+            "constraints": "轻库存",
+        }
+    )
+
+    completions = client.chat.completions
+    assert len(completions.calls) == 2
+    assert result["opportunities"][0]["name"] == "桌面收纳香薰托盘"
+    assert "上一次输出不是合法 JSON" in completions.calls[1]["messages"][-1]["content"]
 
 
 def test_start_research_run_queues_task_once(
@@ -192,27 +283,28 @@ def test_execute_research_run_generates_opportunities(
             .all()
         )
 
-    assert [event.stage for event in events] == [
-        "opportunity_research",
-        "normalize_intake",
-        "generate_opportunities",
-        "validate_results",
-        "persist_results",
-        "collect_research_sources",
-        "index_rag_evidence",
-        "generate_demand_insights",
-        "generate_supply_candidates",
-        "generate_competitor_references",
-        "estimate_validation_budgets",
-        "review_opportunity_risks",
-        "create_action_plans",
-    ]
+    assert {event.stage for event in events} == EXPECTED_COMPLETED_STAGES
     assert all(
         event.status == agent_run_events_service.STATUS_COMPLETED for event in events
     )
     assert all(event.started_at is not None for event in events)
     assert all(event.completed_at is not None for event in events)
     assert all(event.duration_ms is not None for event in events)
+    branch_events = [
+        event for event in events if event.stage in PARALLEL_ANALYSIS_STAGES
+    ]
+    assert all(
+        event.event_metadata["analysis_group"] == "research_analysis"
+        for event in branch_events
+    )
+    synthesize_event = next(
+        event for event in events if event.stage == "synthesize_research_findings"
+    )
+    assert synthesize_event.event_metadata["analysis_branch_status"] == "completed"
+    assert synthesize_event.event_metadata["branch_statuses"] == {
+        stage: agent_run_events_service.STATUS_COMPLETED
+        for stage in PARALLEL_ANALYSIS_STAGES
+    }
     assert any(
         record.message == "Agent run stage completed"
         and getattr(record, "stage", None) == "generate_opportunities"
@@ -251,26 +343,103 @@ def test_research_progress_returns_completed_event_timeline(
     assert body["run_id"] == run_id
     assert body["trace_id"] is None
     assert body["trace_url"] is None
-    assert [event["stage"] for event in body["events"]] == [
-        "opportunity_research",
-        "normalize_intake",
-        "generate_opportunities",
-        "validate_results",
-        "persist_results",
-        "collect_research_sources",
-        "index_rag_evidence",
-        "generate_demand_insights",
-        "generate_supply_candidates",
-        "generate_competitor_references",
-        "estimate_validation_budgets",
-        "review_opportunity_risks",
-        "create_action_plans",
-    ]
+    assert {event["stage"] for event in body["events"]} == EXPECTED_COMPLETED_STAGES
     assert all(event["run_id"] == run_id for event in body["events"])
     assert all("id" not in event for event in body["events"])
     assert all(event["uuid"] for event in body["events"])
     assert "view_opportunities" in body["available_actions"]
     assert "view_report" in body["available_actions"]
+
+
+def test_parallel_analysis_branch_failure_does_not_block_research_run(
+    client: tuple[TestClient, sessionmaker[Session]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    test_client, session_factory = client
+    created = create_task(test_client)
+
+    def fail_supply_branch(
+        db: Session,
+        task: Any,
+        state: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "status": "failed",
+            "error_summary": "货源候选生成失败，基础商机结果已保留。",
+            "metadata": {
+                "supply_candidate_status": "failed",
+                "error_type": "ForcedBranchFailure",
+            },
+        }
+
+    monkeypatch.setattr(
+        graph_module,
+        "collect_supply_candidates_branch",
+        fail_supply_branch,
+    )
+
+    with session_factory() as db:
+        task = research_task_service.start_research_run(
+            db,
+            UUID(created["uuid"]),
+            enqueue=False,
+        )
+        assert task is not None
+        assert task.run_id is not None
+        run_id = task.run_id
+        research_task_service.execute_research_run(
+            db,
+            UUID(created["uuid"]),
+            run_id,
+            generator=DeterministicDemoGenerator(),
+        )
+
+    task_response = test_client.get(f"/api/v1/research-tasks/{created['uuid']}")
+    opportunities_response = test_client.get(
+        f"/api/v1/research-tasks/{created['uuid']}/opportunities"
+    )
+
+    assert task_response.status_code == 200
+    assert task_response.json()["status"] == "completed"
+    assert task_response.json()["current_stage"] == "completed"
+    assert len(opportunities_response.json()) == 3
+
+    with session_factory() as db:
+        events = (
+            db.execute(
+                select(AgentRunEvent).where(AgentRunEvent.run_id == run_id)
+            )
+            .scalars()
+            .all()
+        )
+
+    events_by_stage = {event.stage: event for event in events}
+    assert events_by_stage["generate_demand_insights"].status == "completed"
+    assert events_by_stage["generate_supply_candidates"].status == "failed"
+    assert events_by_stage["generate_competitor_references"].status == "completed"
+    assert events_by_stage["synthesize_research_findings"].status == "completed"
+    assert events_by_stage["estimate_validation_budgets"].status == "completed"
+    assert (
+        events_by_stage["generate_supply_candidates"].event_metadata[
+            "analysis_group"
+        ]
+        == "research_analysis"
+    )
+    assert (
+        events_by_stage["generate_supply_candidates"].event_metadata[
+            "supply_candidate_status"
+        ]
+        == "failed"
+    )
+    assert (
+        events_by_stage["synthesize_research_findings"].event_metadata[
+            "analysis_branch_status"
+        ]
+        == "partial"
+    )
+    assert events_by_stage["synthesize_research_findings"].event_metadata[
+        "branch_statuses"
+    ]["generate_supply_candidates"] == "failed"
 
 
 def test_execute_research_run_persists_trace_context(
@@ -515,36 +684,8 @@ def test_rerun_replaces_old_opportunities(
 
     assert first_events
     assert second_events
-    assert {event.stage for event in first_events} == {
-        "opportunity_research",
-        "normalize_intake",
-        "generate_opportunities",
-        "validate_results",
-        "persist_results",
-        "collect_research_sources",
-        "index_rag_evidence",
-        "generate_demand_insights",
-        "generate_supply_candidates",
-        "generate_competitor_references",
-        "estimate_validation_budgets",
-        "review_opportunity_risks",
-        "create_action_plans",
-    }
-    assert {event.stage for event in second_events} == {
-        "opportunity_research",
-        "normalize_intake",
-        "generate_opportunities",
-        "validate_results",
-        "persist_results",
-        "collect_research_sources",
-        "index_rag_evidence",
-        "generate_demand_insights",
-        "generate_supply_candidates",
-        "generate_competitor_references",
-        "estimate_validation_budgets",
-        "review_opportunity_risks",
-        "create_action_plans",
-    }
+    assert {event.stage for event in first_events} == EXPECTED_COMPLETED_STAGES
+    assert {event.stage for event in second_events} == EXPECTED_COMPLETED_STAGES
 
 
 def test_research_progress_uses_current_run_and_filters_deleted_events(

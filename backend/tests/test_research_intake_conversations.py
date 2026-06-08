@@ -426,6 +426,39 @@ def test_update_intent_message_updates_requirements_without_follow_up(
     assert "先确认" not in body["messages"][-1]["content"]
 
 
+def test_finish_intent_message_updates_requirements_without_repeated_follow_up(
+    client: tuple[TestClient, sessionmaker[Session]],
+) -> None:
+    test_client, _ = client
+    created = test_client.post(
+        "/api/v1/research-intake-conversations",
+        json={
+            "message": (
+                "面向租房办公人群和养猫用户，想找桌面小物、宠物清洁用品"
+                "或收纳用品，在小红书验证。"
+            )
+        },
+    ).json()
+
+    response = test_client.post(
+        f"/api/v1/research-intake-conversations/{created['uuid']}/messages",
+        json={"content": "先这样吧"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["can_create_task"] is True
+    assert body["readiness_status"] == "ready"
+    assert body["draft"]["brief"].startswith("面向租房办公人群和养猫用户")
+    assert body["draft"]["target_channels"] == ["小红书"]
+    assert body["messages"][-2]["role"] == "user"
+    assert body["messages"][-2]["content"] == "先这样吧"
+    assert body["messages"][-1]["role"] == "assistant"
+    assert body["messages"][-1]["structured_delta"]["target_channels"] == ["小红书"]
+    assert "对价格带或毛利有要求吗" not in body["messages"][-1]["content"]
+    assert "有没有明确不做的品类或限制" not in body["messages"][-1]["content"]
+
+
 def test_follow_up_message_updates_channel_without_replacing_brief(
     client: tuple[TestClient, sessionmaker[Session]],
 ) -> None:

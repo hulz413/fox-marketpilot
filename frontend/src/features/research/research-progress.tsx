@@ -76,6 +76,11 @@ const stageTimeline: Array<{
     description: "将已收集公开线索整理为后续分析可检索的待验证证据。",
   },
   {
+    key: "analyze_research",
+    label: "并行研究分析",
+    description: "同时启动需求、货源和竞品三个专业分析分支。",
+  },
+  {
     key: "generate_demand_insights",
     label: "生成需求洞察",
     description: "拆解人群、场景、购买动机和内容种草角度。",
@@ -89,6 +94,11 @@ const stageTimeline: Array<{
     key: "generate_competitor_references",
     label: "生成竞品参考",
     description: "整理类似产品参考、常见售价和差异化切入点。",
+  },
+  {
+    key: "synthesize_research_findings",
+    label: "汇总研究发现",
+    description: "收敛需求、货源和竞品分支结果，为后续预算、风险和行动计划提供上下文。",
   },
   {
     key: "estimate_validation_budgets",

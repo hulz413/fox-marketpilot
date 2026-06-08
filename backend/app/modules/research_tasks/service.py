@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
+from threading import RLock
 from typing import Any, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.settings import get_settings
 from app.integrations.langsmith import (
@@ -41,9 +42,11 @@ FAILURE_STAGE_LABELS = {
     ResearchTaskStage.PERSIST_RESULTS.value: "结果保存",
     ResearchTaskStage.COLLECT_RESEARCH_SOURCES.value: "来源收集",
     ResearchTaskStage.INDEX_RAG_EVIDENCE.value: "证据索引",
+    ResearchTaskStage.ANALYZE_RESEARCH.value: "并行研究分析",
     ResearchTaskStage.GENERATE_DEMAND_INSIGHTS.value: "需求洞察生成",
     ResearchTaskStage.GENERATE_SUPPLY_CANDIDATES.value: "货源候选生成",
     ResearchTaskStage.GENERATE_COMPETITOR_REFERENCES.value: "竞品参考生成",
+    ResearchTaskStage.SYNTHESIZE_RESEARCH_FINDINGS.value: "研究发现汇总",
     ResearchTaskStage.ESTIMATE_VALIDATION_BUDGETS.value: "验证预算估算",
     ResearchTaskStage.REVIEW_OPPORTUNITY_RISKS.value: "风险复核",
     ResearchTaskStage.CREATE_ACTION_PLANS.value: "行动计划生成",
@@ -276,6 +279,9 @@ def make_failure_reason(stage: str, exc: Exception) -> str:
     if stage == ResearchTaskStage.INDEX_RAG_EVIDENCE.value:
         return "基础商机已生成，但证据索引暂不可用；结果已保留，可稍后重试。"
 
+    if stage == ResearchTaskStage.ANALYZE_RESEARCH.value:
+        return "基础商机已生成，但并行研究分析暂不可用；结果已保留，可稍后重试。"
+
     if stage == ResearchTaskStage.GENERATE_DEMAND_INSIGHTS.value:
         return "基础商机已生成，但需求洞察生成失败；结果已保留，可稍后重试。"
 
@@ -284,6 +290,9 @@ def make_failure_reason(stage: str, exc: Exception) -> str:
 
     if stage == ResearchTaskStage.GENERATE_COMPETITOR_REFERENCES.value:
         return "基础商机已生成，但竞品参考生成失败；结果已保留，可稍后重试。"
+
+    if stage == ResearchTaskStage.SYNTHESIZE_RESEARCH_FINDINGS.value:
+        return "基础商机已生成，但研究发现汇总失败；结果已保留，可稍后重试。"
 
     if stage == ResearchTaskStage.ESTIMATE_VALIDATION_BUDGETS.value:
         return "基础商机已生成，但验证预算估算失败；结果已保留，可稍后重试。"
@@ -387,12 +396,22 @@ def execute_research_run(
                 trace_id=task.trace_id,
                 metadata=make_trace_metadata(task, run_id),
             )
+            session_factory = sessionmaker(
+                autocommit=False,
+                autoflush=False,
+                bind=db.get_bind(),
+            )
+            analysis_db_lock = (
+                RLock() if db.get_bind().dialect.name == "sqlite" else None
+            )
             graph.invoke(
                 {
                     "db": db,
                     "task": task,
                     "run_id": run_id,
                     "trace_id": task.trace_id,
+                    "session_factory": session_factory,
+                    "analysis_db_lock": analysis_db_lock,
                     "generator": generator,
                 }
             )

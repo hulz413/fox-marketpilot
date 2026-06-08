@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from app.core.settings import get_settings
 from app.integrations.langsmith import is_langsmith_tracing_enabled
 from app.integrations.llm import create_llm_client
-from app.modules.demand_insights import service as demand_insights_service
 from app.modules.opportunities import service as opportunities_service
 from app.modules.opportunities.models import Opportunity
 from app.modules.research_tasks.models import ResearchTask
@@ -279,10 +278,7 @@ def collect_supply_candidates(
         opportunity.id: select_sources_for_opportunity(opportunity, task_sources)
         for opportunity in opportunities
     }
-    demand_summary_by_opportunity_id = {
-        insight.opportunity_id: insight.summary
-        for insight in demand_insights_service.list_task_demand_insights(db, task)
-    }
+    demand_summary_by_opportunity_id: dict[int, str] = {}
     active_generator = generator or get_supply_candidate_generator()
     generation_result = generate_validated_candidates(
         active_generator,

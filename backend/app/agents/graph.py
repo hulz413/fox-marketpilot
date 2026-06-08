@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Optional, Protocol, TypedDict
+from contextlib import nullcontext
+from operator import add
+from threading import RLock
+from typing import Annotated, Any, Callable, Optional, Protocol, TypedDict
 
 from openai import OpenAI
 from pydantic import ValidationError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from langgraph.graph import END, START, StateGraph
 
@@ -31,6 +34,7 @@ from app.modules.supply_candidates import service as supply_candidates_service
 from app.modules.validation_budgets import service as validation_budgets_service
 
 logger = logging.getLogger(__name__)
+ANALYSIS_GROUP = "research_analysis"
 
 
 class OpportunityGenerator(Protocol):
@@ -43,14 +47,21 @@ class ResearchGraphState(TypedDict, total=False):
     task: ResearchTask
     run_id: str
     trace_id: str
+    session_factory: Callable[[], Session]
+    analysis_db_lock: RLock
     context: dict[str, Any]
     raw_result: dict[str, Any]
     opportunities: list[OpportunityGenerated]
     generator: OpportunityGenerator
     stage_event: dict[str, Any]
+    analysis_branch_results: Annotated[list[dict[str, Any]], add]
 
 
 class OpportunityGenerationError(RuntimeError):
+    pass
+
+
+class ResearchAnalysisBranchError(RuntimeError):
     pass
 
 
@@ -122,45 +133,77 @@ class LLMOpportunityGenerator:
         self.provider = settings.llm_provider
 
     def generate(self, context: dict[str, Any]) -> dict[str, Any]:
-        create_kwargs: dict[str, Any] = {
-            "model": self.model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "你是 MarketPilot 的小成本商机顾问 Agent。"
-                        "只基于用户输入、表单条件、默认国内中文演示场景和你的已有知识"
-                        "生成基础推荐，不要声称已经做过公开调研、来源引用或竞品核验。"
-                        "必须输出 JSON，顶层 key 为 opportunities。"
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": build_generation_prompt(context),
-                },
-            ],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.4,
-        }
+        messages: list[dict[str, str]] = [
+            {
+                "role": "system",
+                "content": (
+                    "你是 MarketPilot 的小成本商机顾问 Agent。"
+                    "只基于用户输入、表单条件、默认国内中文演示场景和你的已有知识"
+                    "生成基础推荐，不要声称已经做过公开调研、来源引用或竞品核验。"
+                    "必须输出 JSON，顶层 key 为 opportunities。"
+                ),
+            },
+            {
+                "role": "user",
+                "content": build_generation_prompt(context),
+            },
+        ]
+        last_error: Optional[Exception] = None
 
-        if is_langsmith_tracing_enabled():
-            create_kwargs["langsmith_extra"] = {
-                "metadata": {
-                    "provider": self.provider,
-                    "model": self.model,
-                    "task_uuid": context.get("task_uuid"),
-                    "run_id": context.get("run_id"),
-                },
-                "tags": ["marketpilot", "opportunity-research"],
+        for attempt in range(2):
+            create_kwargs: dict[str, Any] = {
+                "model": self.model,
+                "messages": messages,
+                "response_format": {"type": "json_object"},
+                "temperature": 0.4,
             }
 
-        completion = self.client.chat.completions.create(**create_kwargs)
-        content = completion.choices[0].message.content
+            if is_langsmith_tracing_enabled():
+                create_kwargs["langsmith_extra"] = {
+                    "metadata": {
+                        "provider": self.provider,
+                        "model": self.model,
+                        "task_uuid": context.get("task_uuid"),
+                        "run_id": context.get("run_id"),
+                        "attempt": attempt + 1,
+                    },
+                    "tags": ["marketpilot", "opportunity-research"],
+                }
 
-        if not content:
-            raise OpportunityGenerationError("模型没有返回内容。")
+            completion = self.client.chat.completions.create(**create_kwargs)
+            content = completion.choices[0].message.content
 
-        return parse_json_content(content)
+            if not content:
+                last_error = OpportunityGenerationError("模型没有返回内容。")
+            else:
+                try:
+                    return parse_json_content(content)
+                except OpportunityGenerationError as exc:
+                    last_error = exc
+                    logger.warning(
+                        "Invalid opportunity generation JSON",
+                        extra={
+                            "task_uuid": context.get("task_uuid"),
+                            "run_id": context.get("run_id"),
+                            "attempt": attempt + 1,
+                            "error_type": type(exc).__name__,
+                        },
+                    )
+                    messages.append({"role": "assistant", "content": content})
+
+            if attempt == 0:
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "上一次输出不是合法 JSON。请只返回一个可被 json.loads 解析的 "
+                            "JSON 对象，不要 Markdown，不要注释，不要多余文本；"
+                            "顶层 key 必须为 opportunities。"
+                        ),
+                    }
+                )
+
+        raise OpportunityGenerationError("模型输出不是合法 JSON。") from last_error
 
 
 def first_or_default(values: list[str], default: str) -> str:
@@ -175,7 +218,10 @@ def parse_json_content(content: str) -> dict[str, Any]:
         if cleaned.startswith("json"):
             cleaned = cleaned[4:].strip()
 
-    parsed = json.loads(cleaned)
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as exc:
+        raise OpportunityGenerationError("模型返回的内容不是合法 JSON。") from exc
 
     if not isinstance(parsed, dict):
         raise OpportunityGenerationError("模型返回的 JSON 不是对象。")
@@ -467,6 +513,23 @@ def index_rag_evidence(state: ResearchGraphState) -> dict[str, Any]:
         }
 
 
+def begin_research_analysis(state: ResearchGraphState) -> dict[str, Any]:
+    return {
+        "analysis_branch_results": [],
+        "stage_event": {
+            "status": "completed",
+            "metadata": {
+                "analysis_group": ANALYSIS_GROUP,
+                "branch_stages": [
+                    ResearchTaskStage.GENERATE_DEMAND_INSIGHTS.value,
+                    ResearchTaskStage.GENERATE_SUPPLY_CANDIDATES.value,
+                    ResearchTaskStage.GENERATE_COMPETITOR_REFERENCES.value,
+                ],
+            },
+        },
+    }
+
+
 def generate_demand_insights(state: ResearchGraphState) -> dict[str, Any]:
     db = state["db"]
     task = state["task"]
@@ -664,6 +727,179 @@ def generate_competitor_references(state: ResearchGraphState) -> dict[str, Any]:
                 },
             },
         }
+
+
+def collect_demand_insights_branch(
+    db: Session,
+    task: ResearchTask,
+    state: ResearchGraphState,
+) -> dict[str, Any]:
+    run_id = state.get("run_id")
+
+    try:
+        result = demand_insights_service.collect_demand_insights(db, task)
+        metadata = {
+            "demand_insight_status": result.status,
+            "saved_demand_insight_count": result.saved_count,
+            "source_link_count": result.source_link_count,
+        }
+        logger.info(
+            "Generated demand insights in analysis branch",
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                **metadata,
+            },
+        )
+        return {
+            "status": "completed",
+            "metadata": metadata,
+        }
+    except Exception as exc:  # pragma: no cover - defensive non-blocking fallback
+        db.rollback()
+        logger.warning(
+            "Demand insight analysis branch failed",
+            exc_info=True,
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                "error_type": type(exc).__name__,
+            },
+        )
+        return {
+            "status": "failed",
+            "error_summary": "需求洞察生成失败，基础商机结果已保留。",
+            "metadata": {
+                "demand_insight_status": "failed",
+                "error_type": type(exc).__name__,
+            },
+        }
+
+
+def collect_supply_candidates_branch(
+    db: Session,
+    task: ResearchTask,
+    state: ResearchGraphState,
+) -> dict[str, Any]:
+    run_id = state.get("run_id")
+
+    try:
+        result = supply_candidates_service.collect_supply_candidates(db, task)
+        metadata = {
+            "supply_candidate_status": result.status,
+            "saved_supply_candidate_count": result.saved_count,
+            "source_link_count": result.source_link_count,
+        }
+        logger.info(
+            "Generated supply candidates in analysis branch",
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                **metadata,
+            },
+        )
+        return {
+            "status": "completed",
+            "metadata": metadata,
+        }
+    except Exception as exc:  # pragma: no cover - defensive non-blocking fallback
+        db.rollback()
+        logger.warning(
+            "Supply candidate analysis branch failed",
+            exc_info=True,
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                "error_type": type(exc).__name__,
+            },
+        )
+        return {
+            "status": "failed",
+            "error_summary": "货源候选生成失败，基础商机结果已保留。",
+            "metadata": {
+                "supply_candidate_status": "failed",
+                "error_type": type(exc).__name__,
+            },
+        }
+
+
+def collect_competitor_references_branch(
+    db: Session,
+    task: ResearchTask,
+    state: ResearchGraphState,
+) -> dict[str, Any]:
+    run_id = state.get("run_id")
+
+    try:
+        result = competitor_references_service.collect_competitor_references(db, task)
+        metadata = {
+            "competitor_reference_status": result.status,
+            "saved_competitor_reference_count": result.saved_count,
+            "source_link_count": result.source_link_count,
+            "retrieval_query_count": result.retrieval_query_count,
+            "retrieval_result_count": result.retrieval_result_count,
+            "retrieval_fallback_count": result.retrieval_fallback_count,
+            "retrieval_top_k": result.retrieval_top_k,
+            "retrieval_source_types": list(result.retrieval_source_types),
+            "retrieval_scope": result.retrieval_scope,
+            "retrieval_queries": list(result.retrieval_queries),
+        }
+        logger.info(
+            "Generated competitor references in analysis branch",
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                **metadata,
+            },
+        )
+        return {
+            "status": "completed",
+            "metadata": metadata,
+        }
+    except Exception as exc:  # pragma: no cover - defensive non-blocking fallback
+        db.rollback()
+        logger.warning(
+            "Competitor reference analysis branch failed",
+            exc_info=True,
+            extra={
+                "task_uuid": str(task.uuid),
+                "run_id": run_id,
+                "error_type": type(exc).__name__,
+            },
+        )
+        return {
+            "status": "failed",
+            "error_summary": "竞品参考生成失败，基础商机结果已保留。",
+            "metadata": {
+                "competitor_reference_status": "failed",
+                "error_type": type(exc).__name__,
+            },
+        }
+
+
+def synthesize_research_findings(state: ResearchGraphState) -> dict[str, Any]:
+    branch_results = state.get("analysis_branch_results", [])
+    branch_statuses = {
+        str(result.get("stage")): result.get("status", "unknown")
+        for result in branch_results
+    }
+    failed_branches = [
+        result for result in branch_results if result.get("status") == "failed"
+    ]
+
+    return {
+        "stage_event": {
+            "status": "completed",
+            "metadata": {
+                "analysis_group": ANALYSIS_GROUP,
+                "analysis_branch_status": (
+                    "partial" if failed_branches else "completed"
+                ),
+                "branch_statuses": branch_statuses,
+                "branch_results": branch_results,
+            },
+        },
+    }
 
 
 def estimate_validation_budgets(state: ResearchGraphState) -> dict[str, Any]:
@@ -950,6 +1186,157 @@ def observe_node(stage: ResearchTaskStage, node):
     return observed
 
 
+def get_branch_session_factory(state: ResearchGraphState) -> Callable[[], Session]:
+    if state.get("session_factory"):
+        return state["session_factory"]
+
+    return sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=state["db"].get_bind(),
+    )
+
+
+def load_branch_task(db: Session, state: ResearchGraphState) -> ResearchTask:
+    task_id = state["task"].id
+    task = db.get(ResearchTask, task_id)
+
+    if task is None or task.deleted_at is not None:
+        raise ResearchAnalysisBranchError("研究任务不存在或已删除。")
+
+    run_id = state.get("run_id")
+    if task.run_id and task.run_id != run_id:
+        raise ResearchAnalysisBranchError("研究任务运行 ID 不匹配。")
+
+    return task
+
+
+def analysis_branch_metadata(
+    task: ResearchTask,
+    state: ResearchGraphState,
+    stage: str,
+) -> dict[str, Any]:
+    return {
+        "task_uuid": str(task.uuid),
+        "run_id": state.get("run_id"),
+        "stage": stage,
+        "trace_id": state.get("trace_id"),
+        "analysis_group": ANALYSIS_GROUP,
+        "branch_stage": stage,
+    }
+
+
+def build_analysis_branch_result(
+    stage: str,
+    status: str,
+    metadata: dict[str, Any],
+    error_summary: Optional[str] = None,
+) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "stage": stage,
+        "status": status,
+        "metadata": metadata,
+    }
+
+    if error_summary:
+        result["error_summary"] = error_summary
+
+    return result
+
+
+def observe_analysis_branch(stage: ResearchTaskStage, node):
+    def observed(state: ResearchGraphState) -> dict[str, Any]:
+        session_factory = get_branch_session_factory(state)
+        lock_context = state.get("analysis_db_lock") or nullcontext()
+        run_id = state["run_id"]
+        trace_id = state.get("trace_id")
+
+        with lock_context, session_factory() as branch_db:
+            task = load_branch_task(branch_db, state)
+            metadata = analysis_branch_metadata(task, state, stage.value)
+
+            try:
+                agent_run_events_service.start_stage(
+                    branch_db,
+                    task,
+                    run_id=run_id,
+                    stage=stage.value,
+                    trace_id=trace_id,
+                    metadata=metadata,
+                )
+
+                with langsmith_trace(
+                    stage.value,
+                    inputs={"task_uuid": str(task.uuid), "run_id": run_id},
+                    metadata=metadata,
+                ):
+                    stage_event = node(branch_db, task, state)
+
+                status = str(stage_event.get("status") or "completed")
+                completion_metadata = dict(metadata)
+                completion_metadata.update(stage_event.get("metadata") or {})
+                error_summary = stage_event.get("error_summary")
+
+                if status == "failed":
+                    agent_run_events_service.fail_stage(
+                        branch_db,
+                        task,
+                        run_id=run_id,
+                        stage=stage.value,
+                        trace_id=trace_id,
+                        error_summary=str(
+                            error_summary or "阶段执行失败，请查看任务失败原因。"
+                        ),
+                        metadata=completion_metadata,
+                    )
+                else:
+                    agent_run_events_service.complete_stage(
+                        branch_db,
+                        task,
+                        run_id=run_id,
+                        stage=stage.value,
+                        trace_id=trace_id,
+                        metadata=completion_metadata,
+                    )
+
+                return {
+                    "analysis_branch_results": [
+                        build_analysis_branch_result(
+                            stage.value,
+                            status,
+                            completion_metadata,
+                            str(error_summary) if error_summary else None,
+                        )
+                    ]
+                }
+            except Exception as exc:
+                branch_db.rollback()
+                failure_metadata = dict(metadata)
+                failure_metadata["error_type"] = type(exc).__name__
+                error_summary = f"{stage.value} failed: {type(exc).__name__}"
+                agent_run_events_service.fail_stage(
+                    branch_db,
+                    task,
+                    run_id=run_id,
+                    stage=stage.value,
+                    trace_id=trace_id,
+                    error_summary=error_summary,
+                    metadata=failure_metadata,
+                )
+                return {
+                    "analysis_branch_results": [
+                        build_analysis_branch_result(
+                            stage.value,
+                            "failed",
+                            failure_metadata,
+                            error_summary,
+                        )
+                    ]
+                }
+
+    return observed
+
+
 def build_research_graph():
     graph = StateGraph(ResearchGraphState)
     graph.add_node(
@@ -983,24 +1370,38 @@ def build_research_graph():
         ),
     )
     graph.add_node(
-        "generate_demand_insights",
+        "analyze_research",
         observe_node(
+            ResearchTaskStage.ANALYZE_RESEARCH,
+            begin_research_analysis,
+        ),
+    )
+    graph.add_node(
+        "generate_demand_insights",
+        observe_analysis_branch(
             ResearchTaskStage.GENERATE_DEMAND_INSIGHTS,
-            generate_demand_insights,
+            collect_demand_insights_branch,
         ),
     )
     graph.add_node(
         "generate_supply_candidates",
-        observe_node(
+        observe_analysis_branch(
             ResearchTaskStage.GENERATE_SUPPLY_CANDIDATES,
-            generate_supply_candidates,
+            collect_supply_candidates_branch,
         ),
     )
     graph.add_node(
         "generate_competitor_references",
-        observe_node(
+        observe_analysis_branch(
             ResearchTaskStage.GENERATE_COMPETITOR_REFERENCES,
-            generate_competitor_references,
+            collect_competitor_references_branch,
+        ),
+    )
+    graph.add_node(
+        "synthesize_research_findings",
+        observe_node(
+            ResearchTaskStage.SYNTHESIZE_RESEARCH_FINDINGS,
+            synthesize_research_findings,
         ),
     )
     graph.add_node(
@@ -1030,10 +1431,14 @@ def build_research_graph():
     graph.add_edge("validate_results", "persist_results")
     graph.add_edge("persist_results", "collect_research_sources")
     graph.add_edge("collect_research_sources", "index_rag_evidence")
-    graph.add_edge("index_rag_evidence", "generate_demand_insights")
-    graph.add_edge("generate_demand_insights", "generate_supply_candidates")
-    graph.add_edge("generate_supply_candidates", "generate_competitor_references")
-    graph.add_edge("generate_competitor_references", "estimate_validation_budgets")
+    graph.add_edge("index_rag_evidence", "analyze_research")
+    graph.add_edge("analyze_research", "generate_demand_insights")
+    graph.add_edge("analyze_research", "generate_supply_candidates")
+    graph.add_edge("analyze_research", "generate_competitor_references")
+    graph.add_edge("generate_demand_insights", "synthesize_research_findings")
+    graph.add_edge("generate_supply_candidates", "synthesize_research_findings")
+    graph.add_edge("generate_competitor_references", "synthesize_research_findings")
+    graph.add_edge("synthesize_research_findings", "estimate_validation_budgets")
     graph.add_edge("estimate_validation_budgets", "review_opportunity_risks")
     graph.add_edge("review_opportunity_risks", "create_action_plans")
     graph.add_edge("create_action_plans", END)

@@ -394,6 +394,21 @@ test("research progress includes RAG evidence indexing stage", () => {
   assert.match(taskList, /整理公开来源证据/);
 });
 
+test("research progress includes parallel analysis and synthesis stages", () => {
+  const progress = readSource("src/features/research/research-progress.tsx");
+  const api = readSource("src/features/research/api.ts");
+  const taskList = readSource("src/features/research/research-task-list.tsx");
+
+  assert.match(api, /analyze_research/);
+  assert.match(api, /synthesize_research_findings/);
+  assert.match(progress, /analyze_research/);
+  assert.match(progress, /synthesize_research_findings/);
+  assert.match(progress, /同时启动需求、货源和竞品三个专业分析分支/);
+  assert.match(progress, /收敛需求、货源和竞品分支结果/);
+  assert.match(taskList, /并行研究分析/);
+  assert.match(taskList, /汇总研究发现/);
+});
+
 test("opportunity risks keep cautious copy and non-blocking states", () => {
   const source = readSource("src/features/research/opportunity-risks.tsx");
   const progress = readSource("src/features/research/research-progress.tsx");
