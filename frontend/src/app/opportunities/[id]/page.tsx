@@ -1,8 +1,3 @@
-import Link from "next/link";
-import { ClipboardList } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import { LocalizedText } from "@/features/i18n/language-provider";
 import { ProductShell } from "@/features/product-skeleton/components";
 import { OpportunityDetail } from "@/features/opportunities/opportunity-detail";
 
@@ -18,14 +13,6 @@ export default async function OpportunityDetailPage({
       active="tasks"
       title="商机详情"
       description="集中查看单个待验证商机是什么、为什么推荐、适合谁、风险高低和下一步做什么。"
-      action={
-        <Button asChild>
-          <Link href="/research/tasks">
-            <LocalizedText source="我的研究" />
-            <ClipboardList data-icon="inline-end" />
-          </Link>
-        </Button>
-      }
     >
       <OpportunityDetail opportunityUuid={id} />
     </ProductShell>

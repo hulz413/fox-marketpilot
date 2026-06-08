@@ -18,14 +18,6 @@ export default function ReportsIndexPage() {
       active="tasks"
       title="选择研究结果"
       description="报告需要绑定一条真实研究。请先从我的研究里选择已完成任务。"
-      action={
-        <Button asChild>
-          <Link href="/research/tasks">
-            <LocalizedText source="我的研究" />
-            <ClipboardList data-icon="inline-end" />
-          </Link>
-        </Button>
-      }
     >
       <Card className="rounded-lg border-dashed">
         <CardHeader>

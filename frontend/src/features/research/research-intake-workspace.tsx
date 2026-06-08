@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { ClipboardList, FilePenLine, MessageCircle } from "lucide-react";
+import { FilePenLine, MessageCircle } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -36,14 +35,6 @@ export function ResearchIntakeWorkspace() {
       active="new"
       title="新建研究"
       description="通过聊天或表单把商机想法整理成可启动的研究任务。"
-      action={
-        <Button asChild>
-          <Link href="/research/tasks">
-            {t("我的研究")}
-            <ClipboardList data-icon="inline-end" />
-          </Link>
-        </Button>
-      }
       breadcrumbAction={
         <Button
           type="button"

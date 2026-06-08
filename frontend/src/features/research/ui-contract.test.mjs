@@ -110,7 +110,8 @@ test("global navigation is streamlined around my research", () => {
   assert.doesNotMatch(data, /label: "最终报告"/);
   assert.match(home, /ResearchIntakeWorkspace/);
   assert.match(tasks, /title="我的研究"/);
-  assert.match(tasks, /Sparkles data-icon="inline-end"/);
+  assert.doesNotMatch(tasks, /Sparkles data-icon="inline-end"/);
+  assert.doesNotMatch(tasks, /action=\{/);
   assert.doesNotMatch(tasks, /ArrowRight/);
   assert.match(history, /redirect\("\/research\/tasks\?status=completed"\)/);
   assert.match(opportunities, /active="tasks"/);
@@ -166,7 +167,7 @@ test("new research form supports sample fill and direct launch", () => {
   assert.match(workspace, /className="h-full min-h-0"/);
   assert.match(workspace, /onEditDraft=\{editDraftInForm\}/);
   assert.match(workspace, /initialDraft=\{formDraft\?\.draft\}/);
-  assert.match(workspace, /ClipboardList data-icon="inline-end"/);
+  assert.doesNotMatch(workspace, /ClipboardList data-icon="inline-end"/);
   assert.match(workspace, /FilePenLine data-icon="inline-end"/);
   assert.match(workspace, /MessageCircle data-icon="inline-end"/);
   assert.match(tasks, /ResearchTaskList/);
@@ -196,7 +197,8 @@ test("research intake chat creates drafts before starting tasks", () => {
   assert.match(chat, /grid-cols-\[auto_minmax\(0,1fr\)\] grid-rows-\[auto\]/);
   assert.match(chat, /size-10 shrink-0/);
   assert.match(chat, /研究草稿/);
-  assert.match(chat, /ReadinessBadges conversation=\{conversation\}/);
+  assert.match(chat, /showDraftControls/);
+  assert.match(chat, /showDraftControls \? conversation : null/);
   assert.doesNotMatch(chat, /点击「更新需求」后会显示草稿完整度/);
   assert.match(chat, /const hasSummary =/);
   assert.match(chat, /缺失条件/);
@@ -208,7 +210,9 @@ test("research intake chat creates drafts before starting tasks", () => {
   assert.match(chat, /更新需求/);
   assert.match(chat, /更新中/);
   assert.match(chat, /商机顾问会追问补充信息/);
-  assert.match(chat, /justify-start whitespace-normal px-4 py-1\.5 text-left leading-6/);
+  assert.match(chat, /grid max-w-2xl gap-2/);
+  assert.match(chat, /w-full justify-start whitespace-normal px-4 py-2 text-left leading-6/);
+  assert.match(chat, /先在左侧发送想法或选择示例/);
   assert.match(chat, /fetchResearchIntakeConversation/);
   assert.match(chat, /INTAKE_CONVERSATION_STORAGE_KEY/);
   assert.match(chat, /sessionStorage/);
@@ -235,7 +239,7 @@ test("research intake chat creates drafts before starting tasks", () => {
   assert.match(chat, /flex min-h-0 flex-1 flex-col gap-4/);
   assert.match(chat, /min-h-0 min-w-0 self-stretch/);
   assert.match(chat, /h-full min-h-0 gap-4 rounded-lg/);
-  assert.match(chat, /grid min-h-0 flex-1 gap-4 overflow-y-auto/);
+  assert.match(chat, /grid min-h-0 flex-1 auto-rows-min content-start gap-4 overflow-y-auto/);
   assert.match(chat, /UserRound/);
   assert.match(chat, /Compass/);
   assert.match(chat, /max-w-\[min\(560px,72%\)\]/);

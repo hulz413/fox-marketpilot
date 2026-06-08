@@ -1,8 +1,5 @@
-import Link from "next/link";
 import { Suspense } from "react";
-import { ClipboardList } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -20,14 +17,6 @@ export default function OpportunitiesPage() {
       active="tasks"
       title="基础商机推荐"
       description="展示某条研究任务生成的 3-5 个待验证商机草案。"
-      action={
-        <Button asChild>
-          <Link href="/research/tasks">
-            <LocalizedText source="我的研究" />
-            <ClipboardList data-icon="inline-end" />
-          </Link>
-        </Button>
-      }
     >
       <Suspense fallback={<OpportunityListFallback />}>
         <OpportunityList />

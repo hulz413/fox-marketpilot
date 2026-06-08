@@ -234,6 +234,10 @@ export function ResearchIntakeChat({
   const canEditDraft = Boolean(
     onEditDraft && conversation && hasDraftContent(conversation.draft),
   );
+  const hasDraft = Boolean(conversation && hasDraftContent(conversation.draft));
+  const showDraftControls = Boolean(
+    hasDraft || canCreate || conversation?.research_task_uuid,
+  );
   const hasVisibleMessages = Boolean(
     conversation?.messages.length || pendingMessage,
   );
@@ -422,14 +426,14 @@ export function ResearchIntakeChat({
                       )}
                 </p>
                 {!isRestoringConversation ? (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid max-w-2xl gap-2">
                     {starterPrompts.map((prompt) => (
                       <Button
                         key={prompt}
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="h-auto max-w-full justify-start whitespace-normal px-4 py-1.5 text-left leading-6"
+                        className="h-auto w-full justify-start whitespace-normal px-4 py-2 text-left leading-6"
                         disabled={isSending || isUpdating}
                         onClick={() => void submitMessage(prompt)}
                       >
@@ -501,36 +505,35 @@ export function ResearchIntakeChat({
           <CardHeader className="shrink-0">
             <div className="flex flex-wrap items-center gap-2">
               <CardTitle>{t("研究草稿")}</CardTitle>
-              <ReadinessBadges conversation={conversation} />
+              <ReadinessBadges
+                conversation={showDraftControls ? conversation : null}
+              />
             </div>
             <CardDescription>
               {t("确认后会创建真实研究任务并进入进度页。")}
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid min-h-0 flex-1 gap-4 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <CardContent className="grid min-h-0 flex-1 auto-rows-min content-start gap-4 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <ReadinessSummary conversation={conversation} />
-            <Button
-              type="button"
-              disabled={
-                !canCreate || isRestoringConversation || isUpdating || isConfirming
-              }
-              onClick={() => confirmMutation.mutate()}
-            >
-              {isConfirming ? t("正在启动") : t("确认并启动研究")}
-              <Rocket data-icon="inline-end" />
-            </Button>
-            {onEditDraft ? (
+            {showDraftControls ? (
+              <Button
+                type="button"
+                disabled={
+                  !canCreate || isRestoringConversation || isUpdating || isConfirming
+                }
+                onClick={() => confirmMutation.mutate()}
+              >
+                {isConfirming ? t("正在启动") : t("确认并启动研究")}
+                <Rocket data-icon="inline-end" />
+              </Button>
+            ) : null}
+            {canEditDraft ? (
               <Button
                 type="button"
                 variant="outline"
-                disabled={
-                  !canEditDraft ||
-                  isRestoringConversation ||
-                  isUpdating ||
-                  isConfirming
-                }
+                disabled={isRestoringConversation || isUpdating || isConfirming}
                 onClick={() => {
-                  if (conversation) {
+                  if (conversation && onEditDraft) {
                     onEditDraft(conversation.draft);
                   }
                 }}
@@ -547,18 +550,24 @@ export function ResearchIntakeChat({
                 </Link>
               </Button>
             ) : null}
-            <div className="grid gap-3">
-              {draftFields.map((field) => (
-                <div key={field.key} className="grid gap-1 rounded-md border p-3">
-                  <span className="text-xs text-muted-foreground">
-                    {t(field.label)}
-                  </span>
-                  <span className="break-words text-sm font-medium leading-6">
-                    {draftValue(conversation?.draft[field.key] ?? null)}
-                  </span>
-                </div>
-              ))}
-            </div>
+            {hasDraft ? (
+              <div className="grid gap-3">
+                {draftFields.map((field) => (
+                  <div key={field.key} className="grid gap-1 rounded-md border p-3">
+                    <span className="text-xs text-muted-foreground">
+                      {t(field.label)}
+                    </span>
+                    <span className="break-words text-sm font-medium leading-6">
+                      {draftValue(conversation?.draft[field.key] ?? null)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-md border border-dashed bg-secondary/40 p-3 text-sm leading-6 text-muted-foreground">
+                {t("先在左侧发送想法或选择示例，更新需求后这里会显示可启动的研究草稿。")}
+              </div>
+            )}
           </CardContent>
         </Card>
       </aside>
